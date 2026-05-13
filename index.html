@@ -1,0 +1,6110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>格式转换工具</title>
+<style>
+  :root {
+    --primary: #4F6EF7;
+    --primary-light: #EEF1FE;
+    --primary-dark: #3451D1;
+    --bg: #F0F2F8;
+    --sidebar-bg: #1E2440;
+    --sidebar-hover: #2A3258;
+    --sidebar-active: #4F6EF7;
+    --card: #FFFFFF;
+    --text: #1A1F36;
+    --text-muted: #8A93B2;
+    --border: #E4E7F0;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --shadow: 0 2px 16px rgba(79,110,247,0.08);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+  .sidebar {
+    width: 220px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 0; }
+
+  .logo-area {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .logo-title { font-size: 17px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .logo-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+  .nav-section { padding: 14px 0 4px; }
+  .nav-section-label {
+    font-size: 10px; color: rgba(255,255,255,0.3);
+    padding: 0 20px 6px;
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 0;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px; font-weight: 500;
+    transition: all 0.18s;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
+  .nav-item.active {
+    background: var(--sidebar-active);
+    color: #fff;
+    font-weight: 700;
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: #fff; border-radius: 0 2px 2px 0;
+  }
+  .nav-icon { font-size: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--primary);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .nav-badge.new { background: var(--danger); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .sidebar-footer:hover { background: var(--sidebar-hover); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#4F6EF7,#9B59B6); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .user-info { flex: 1; }
+  .user-name { font-size: 12px; color: #fff; font-weight: 600; }
+  .user-role { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    height: 60px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .breadcrumb .current { color: var(--text); font-weight: 700; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .tb-btn {
+    padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+    display: flex; align-items: center; gap: 6px; transition: all 0.18s;
+  }
+  .tb-btn.primary { background: var(--primary); color: #fff; }
+  .tb-btn.primary:hover { background: var(--primary-dark); }
+  .tb-btn.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .tb-btn.ghost:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .tb-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+  .content { flex: 1; overflow-y: auto; padding: 20px 28px; }
+  .content::-webkit-scrollbar { width: 6px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .notif-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); display: inline-block; }
+
+  .page-section {
+    display: none;
+    height: 100%;
+  }
+
+  .page-section.active {
+    display: block;
+  }
+
+  .page-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 20px; }
+
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .tool-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tool-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 28px rgba(79,110,247,0.15);
+    border-color: var(--primary);
+  }
+
+  .tool-icon { font-size: 36px; margin-bottom: 12px; }
+  .tool-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .tool-desc { font-size: 13px; color: var(--text-muted); }
+
+  .quick-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .quick-btn {
+    flex: 1;
+    padding: 16px;
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+  }
+
+  .quick-btn:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  .quick-icon { font-size: 24px; }
+  .quick-text { text-align: left; }
+  .quick-title { font-size: 14px; font-weight: 700; color: var(--text); }
+  .quick-sub { font-size: 12px; color: var(--text-muted); }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .stat-value { font-size: 28px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .stat-label { font-size: 13px; color: var(--text-muted); }
+
+  .upload-section {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .upload-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 2px dashed var(--border);
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .upload-box:hover { border-color: var(--primary); background: var(--primary-light); }
+  .upload-box.has-file { border-style: solid; border-color: var(--success); }
+  .upload-icon { font-size: 40px; margin-bottom: 10px; }
+  .upload-title { font-size: 15px; font-weight: 700; }
+  .upload-desc { font-size: 12px; color: var(--text-muted); }
+
+  .upload-types {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .type-tag {
+    padding: 4px 10px;
+    background: var(--bg);
+    color: var(--text-muted);
+    border-radius: 20px;
+    font-size: 11px;
+  }
+
+  .preview-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .preview-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .preview-tab {
+    padding: 14px 24px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+
+  .preview-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  .preview-tab:hover:not(.active) {
+    background: var(--bg);
+  }
+
+  .preview-tab.disabled {
+    color: #C0C7D4;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .preview-tab.disabled:hover {
+    background: transparent;
+  }
+
+  .comparison-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    padding: 16px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--primary);
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .preview-content {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    min-height: 400px;
+  }
+
+  .preview-panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preview-panel:last-child {
+    border-right: none;
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .preview-title { font-size: 13px; font-weight: 700; }
+  .preview-title.original { color: #6B7280; }
+  .preview-title.modified { color: #16A34A; }
+
+  .document-preview {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+
+  .document-preview .title1 {
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--primary);
+  }
+
+  .document-preview .title2 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: var(--primary-dark);
+  }
+
+  .document-preview .title3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 12px;
+    margin-bottom: 6px;
+  }
+
+  .document-preview .list-item {
+    margin-left: 20px;
+    margin-bottom: 4px;
+  }
+
+  .document-preview .highlight {
+    background: #FEF08A;
+    padding: 0 4px;
+  }
+
+  .params-panel-inner {
+    padding: 16px;
+    height: calc(100% - 40px);
+    overflow-y: auto;
+  }
+
+  .params-panel-inner .params-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .params-panel-inner .param-group {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .params-panel-inner .param-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  .params-panel-inner .param-item {
+    margin-bottom: 10px;
+  }
+
+  .params-panel-inner .param-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .params-panel-inner .param-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .params-panel-inner .param-select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    background: var(--card);
+    color: var(--text);
+  }
+
+  .params-panel-inner .param-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .params-panel-inner .param-chip {
+    padding: 4px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .params-panel-inner .param-chip.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .template-categories {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .category-tag {
+    padding: 8px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .category-tag:hover {
+    border-color: var(--primary);
+  }
+
+  .category-tag.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .update-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    background: #10B981;
+    border-radius: 50%;
+  }
+
+  .update-count {
+    margin-left: auto;
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .template-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .template-card {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: var(--card);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .template-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+  }
+
+  .template-icon {
+    font-size: 36px;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+
+  .template-info {
+    flex: 1;
+  }
+
+  .template-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .template-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .template-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .template-tags .tag {
+    padding: 2px 8px;
+    font-size: 10px;
+    border-radius: 4px;
+  }
+
+  .template-tags .tag:last-child {
+    background: var(--primary);
+    color: white;
+  }
+
+  .template-tags .tag:first-child {
+    background: #FEF3C7;
+    color: #D97706;
+  }
+
+  .template-actions {
+    margin-top: auto;
+  }
+
+  .template-btn {
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .template-btn:hover {
+    background: var(--primary-dark);
+  }
+
+  #param-convert-upload {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    margin-bottom: 20px;
+  }
+
+  #param-convert-upload .upload-box {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  #word-pdf-upload {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    margin-bottom: 20px;
+  }
+
+  #word-pdf-upload .upload-box {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  #image-pdf-upload {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    margin-bottom: 20px;
+  }
+
+  #image-pdf-upload .upload-box {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .ai-provider-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .ai-provider-tab {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+  }
+
+  .ai-provider-tab:hover {
+    background: var(--border);
+  }
+
+  .ai-provider-tab.active {
+    background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+    color: white;
+  }
+
+  .ai-agent-section {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .ai-agent-section h3 {
+    margin-bottom: 16px;
+    font-size: 16px;
+    color: var(--text);
+  }
+
+  .api-config-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .api-config-form .form-group {
+    margin-bottom: 0;
+  }
+
+  .skills-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .skill-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--card);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .skill-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .skill-icon {
+    font-size: 24px;
+  }
+
+  .skill-name {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .skill-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .skill-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    background: var(--border);
+    color: var(--text-muted);
+  }
+
+  .skill-status.active {
+    background: #D1FAE5;
+    color: #065F46;
+  }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.show {
+    display: flex;
+  }
+
+  .modal-content {
+    background: var(--card);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+    color: white;
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    transition: background 0.2s;
+  }
+
+  .modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .modal-body {
+    padding: 24px;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .api-config-form-modal {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .skills-list-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ai-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ai-tab {
+    padding: 10px 20px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    background: transparent;
+    position: relative;
+    bottom: -1px;
+    border: 1px solid transparent;
+    border-bottom: none;
+  }
+
+  .ai-tab:hover {
+    background: var(--bg);
+  }
+
+  .ai-tab.active {
+    background: var(--card);
+    border-color: var(--border);
+    border-bottom-color: var(--card);
+    font-weight: 500;
+  }
+
+  .ai-tab-content {
+    display: none;
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .ai-tab-content.active {
+    display: block;
+  }
+
+  .configured-agents {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .agent-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--card);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .agent-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .agent-icon {
+    font-size: 20px;
+  }
+
+  .agent-name {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .agent-status {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .agent-status.active {
+    color: #065F46;
+    font-weight: 500;
+  }
+
+  .skill-upload-box {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .skill-upload-box:hover {
+    border-color: var(--primary);
+    background: var(--bg);
+  }
+
+  .skill-upload-box .upload-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+
+  .skill-upload-box .upload-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .skill-upload-box .upload-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .upload-progress {
+    text-align: center;
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  .convert-progress {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .progress-title {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .progress-time {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .progress-bar-large {
+    height: 12px;
+    background: var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 12px;
+  }
+
+  .progress-fill-large {
+    height: 100%;
+    background: linear-gradient(90deg, #10B981 0%, #06B6D4 100%);
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  .progress-bar-large .progress-text {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .progress-details {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .compress-settings {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .setting-group {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .setting-group h3 {
+    margin-bottom: 16px;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .compress-format-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .format-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--card);
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .format-option:hover {
+    border-color: var(--primary);
+  }
+
+  .format-option input[type="radio"] {
+    display: none;
+  }
+
+  .format-option input[type="radio"]:checked + .format-icon {
+    transform: scale(1.2);
+  }
+
+  .format-option input[type="radio"]:checked ~ .format-name {
+    font-weight: 500;
+    color: var(--primary);
+  }
+
+  .format-icon {
+    font-size: 20px;
+    transition: transform 0.2s;
+  }
+
+  .format-name {
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .compress-quality-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .quality-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--card);
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .quality-option:hover {
+    border-color: var(--primary);
+  }
+
+  .quality-option input[type="radio"] {
+    display: none;
+  }
+
+  .quality-option input[type="radio"]:checked + .quality-icon {
+    transform: scale(1.2);
+  }
+
+  .quality-option input[type="radio"]:checked ~ .quality-info .quality-name {
+    font-weight: 500;
+    color: var(--primary);
+  }
+
+  .quality-icon {
+    font-size: 24px;
+    transition: transform 0.2s;
+  }
+
+  .quality-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .quality-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .quality-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .compress-result {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .result-header h3 {
+    margin: 0 0 16px 0;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .download-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #DCFCE7;
+    border-radius: 8px;
+  }
+
+  .download-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .download-icon {
+    font-size: 28px;
+  }
+
+  .download-name {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .download-meta {
+    font-size: 13px;
+    color: #065F46;
+  }
+
+  #video-compress-upload {
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #watermark-upload {
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .watermark-settings {
+    margin-bottom: 20px;
+  }
+
+  .watermark-type-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .type-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--card);
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .type-option:hover {
+    border-color: var(--primary);
+  }
+
+  .type-option input[type="radio"] {
+    display: none;
+  }
+
+  .type-option input[type="radio"]:checked + .type-icon {
+    transform: scale(1.2);
+  }
+
+  .type-option input[type="radio"]:checked ~ .type-name {
+    font-weight: 500;
+    color: var(--primary);
+  }
+
+  .type-icon {
+    font-size: 20px;
+    transition: transform 0.2s;
+  }
+
+  .type-name {
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .watermark-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+
+  .watermark-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .option-row label {
+    font-size: 13px;
+    color: var(--text);
+    min-width: 50px;
+  }
+
+  .option-row input[type="range"] {
+    width: 120px;
+  }
+
+  .option-row select {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+    color: var(--text);
+  }
+
+  .option-row input[type="color"] {
+    width: 40px;
+    height: 30px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .watermark-result {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .watermark-main {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .watermark-preview-section {
+    margin-bottom: 20px;
+  }
+
+  .watermark-preview-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .watermark-preview-box {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+
+  .preview-bg {
+    width: 100%;
+    height: 200px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .preview-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    font-size: 20px;
+    color: #666666;
+    opacity: 0.5;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  #watermark-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .upload-box.small {
+    padding: 16px;
+    min-height: 80px;
+  }
+
+  .upload-box.small .upload-icon {
+    font-size: 24px;
+  }
+
+  .upload-box.small .upload-title {
+    font-size: 14px;
+  }
+
+  .upload-box.small .upload-desc {
+    font-size: 12px;
+  }
+
+  .ai-float-btn {
+    position: fixed;
+    right: 30px;
+    bottom: 100px;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    z-index: 1000;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .ai-float-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+  }
+
+  .ai-float-btn span {
+    font-size: 28px;
+  }
+
+  .ai-dialog {
+    position: fixed;
+    right: 100px;
+    bottom: 100px;
+    width: 380px;
+    height: 500px;
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    display: none;
+    flex-direction: column;
+    z-index: 1001;
+    overflow: hidden;
+  }
+
+  .ai-dialog.show {
+    display: flex;
+  }
+
+  .ai-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+    color: white;
+  }
+
+  .ai-dialog-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .ai-dialog-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    transition: background 0.2s;
+  }
+
+  .ai-dialog-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .ai-dialog-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ai-dialog-body .chat-message {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 85%;
+  }
+
+  .ai-dialog-body .chat-message.bot {
+    background: var(--bg);
+    color: var(--text);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+
+  .ai-dialog-body .chat-message.user {
+    background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+
+  .ai-dialog-footer {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ai-dialog-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .ai-dialog-input:focus {
+    border-color: var(--primary);
+  }
+
+  .ai-dialog-send {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    transition: transform 0.2s;
+  }
+
+  .ai-dialog-send:hover {
+    transform: scale(1.05);
+  }
+
+  .document-preview .highlight {
+    border-radius: 3px;
+  }
+
+  .document-preview .standard-content {
+    background: #DBEAFE;
+    color: #1D4ED8;
+    padding: 0 4px;
+    border-radius: 3px;
+    border-bottom: 2px solid #3B82F6;
+  }
+
+  .document-preview .format-converted {
+    background: #FEF3C7;
+    color: #D97706;
+    padding: 0 4px;
+    border-radius: 3px;
+    border-bottom: 2px dashed #F59E0B;
+  }
+
+  .document-preview .added-content {
+    background: #D1FAE5;
+    color: #059669;
+    padding: 0 4px;
+    border-radius: 3px;
+    border-bottom: 2px solid #10B981;
+  }
+
+  .legend-bar {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 16px;
+    padding: 10px 20px;
+    background: var(--bg);
+    border-radius: 8px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .legend-color.standard {
+    background: #DBEAFE;
+    border-bottom: 2px solid #3B82F6;
+  }
+
+  .legend-color.format {
+    background: #FEF3C7;
+    border-bottom: 2px dashed #F59E0B;
+  }
+
+  .legend-color.added {
+    background: #D1FAE5;
+    border-bottom: 2px solid #10B981;
+  }
+
+  .diff-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 500px;
+  }
+
+  .diff-left {
+    border-right: 1px solid var(--border);
+  }
+
+  .diff-right {
+    border-left: 1px solid var(--border);
+  }
+
+  .diff-container .preview-header {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 1;
+  }
+
+  .diff-container .document-preview {
+    height: calc(100% - 50px);
+    overflow-y: auto;
+  }
+
+  .document-preview .table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+
+  .document-preview .table th,
+  .document-preview .table td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+  }
+
+  .document-preview .table th {
+    background: var(--bg);
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .image-preview-box {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .image-placeholder {
+    font-size: 60px;
+    margin-bottom: 12px;
+  }
+
+  .image-info {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  .field-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .field-tag {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .field-tag.h1 { background: #DBEAFE; color: #2563EB; }
+  .field-tag.h2 { background: #E0E7FF; color: #4F46E5; }
+  .field-tag.h3 { background: #C7D2FE; color: #4338CA; }
+  .field-tag.text { background: #DCFCE7; color: #16A34A; }
+  .field-tag.table { background: #FEF9C3; color: #CA8A04; }
+  .field-tag.list { background: #FCE7F3; color: #DB2777; }
+  .field-tag.quote { background: #ECFDF5; color: #059669; }
+  .field-tag.toc { background: #F3E8FF; color: #7C3AED; }
+
+  .convert-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .action-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .action-btn.primary {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .action-btn.primary:hover {
+    background: var(--primary-dark);
+  }
+
+  .action-btn.secondary {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .action-btn.secondary:hover {
+    background: var(--border);
+  }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block; }
+  .form-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .form-input:focus { outline: none; border-color: var(--primary); }
+
+  .action-btn {
+    padding: 12px 30px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.18s;
+  }
+
+  .action-btn.primary {
+    background: linear-gradient(135deg, var(--primary), #6C8EFF);
+    color: #fff;
+  }
+
+  .action-btn.secondary {
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .ai-chat-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 40px);
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .chat-message {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 16px;
+  }
+
+  .chat-message.user {
+    background: var(--primary);
+    color: #fff;
+    align-self: flex-end;
+    border-radius: 16px 4px 16px 16px;
+  }
+
+  .chat-message.bot {
+    background: var(--bg);
+    color: var(--text);
+    align-self: flex-start;
+    border-radius: 4px 16px 16px 16px;
+  }
+
+  .chat-input-area {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+  }
+
+  .chat-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    font-size: 14px;
+  }
+
+  .chat-input:focus { outline: none; border-color: var(--primary); }
+
+  .send-btn {
+    width: 44px;
+    height: 44px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .send-btn:hover { background: var(--primary-dark); }
+
+  .history-table {
+    width: 100%;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border-collapse: collapse;
+  }
+
+  .history-table th, .history-table td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .history-table th {
+    background: var(--bg);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .status-badge.success { background: #DCFCE7; color: #16A34A; }
+  .status-badge.processing { background: #FEF9C3; color: #CA8A04; }
+  .status-badge.failed { background: #FEE2E2; color: #DC2626; }
+
+  .settings-content {
+    display: flex;
+    gap: 20px;
+  }
+
+  .settings-nav {
+    width: 200px;
+    flex-shrink: 0;
+  }
+
+  .settings-nav-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+
+  .settings-nav-item:hover { background: var(--bg); color: var(--text); }
+  .settings-nav-item.active { background: var(--primary); color: #fff; }
+
+  .settings-panel {
+    flex: 1;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    display: none;
+  }
+
+  .settings-panel.active { display: block; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+
+  .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
+  .stat-icon.blue { background: linear-gradient(135deg,#4F6EF7,#6C8EFF); }
+  .stat-icon.green { background: linear-gradient(135deg,#11998e,#38ef7d); }
+  .stat-icon.orange { background: linear-gradient(135deg,#f7971e,#ffd200); }
+  .stat-icon.purple { background: linear-gradient(135deg,#a18cd1,#fbc2eb); }
+  .stat-icon.cyan { background: linear-gradient(135deg,#00d9ff,#00ffa3); }
+
+  .period-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: var(--card);
+    padding: 4px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    width: fit-content;
+  }
+
+  .period-btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+
+  .period-btn.active { background: var(--primary); color: #fff; }
+
+  .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+
+  .chart-panel {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 20px;
+  }
+
+  .chart-header { margin-bottom: 16px; font-size: 14px; font-weight: 700; }
+
+  .chart-container { display: flex; align-items: flex-end; justify-content: space-between; height: 150px; }
+
+  .chart-bar { flex: 1; background: var(--primary); border-radius: 4px 4px 0 0; margin: 0 2px; }
+
+  .admin-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+  }
+
+  .user-dropdown {
+    position: absolute;
+    right: 28px;
+    top: 60px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(79,110,247,0.15);
+    border: 1px solid var(--border);
+    padding: 16px;
+    width: 220px;
+    z-index: 1000;
+  }
+
+  .dropdown-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .dropdown-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#4F6EF7,#9B59B6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+
+  .dropdown-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .dropdown-phone, .dropdown-wechat, .dropdown-email {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .dropdown-content hr {
+    width: 100%;
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 12px 0;
+  }
+
+  .dropdown-logout {
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+    background: var(--danger);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .dropdown-logout:hover {
+    background: #DC2626;
+  }
+
+  .sidebar-user-panel {
+    background: var(--sidebar-bg);
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    animation: slideDown 0.2s ease;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .panel-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .panel-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#4F6EF7,#9B59B6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+
+  .panel-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 5px;
+  }
+
+  .panel-phone, .panel-wechat, .panel-email {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 3px;
+  }
+
+  .panel-content hr {
+    width: 100%;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    margin: 10px 0;
+  }
+
+  .panel-logout {
+    width: 100%;
+    text-align: center;
+    padding: 8px;
+    background: rgba(239,68,68,0.2);
+    color: var(--danger);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .panel-logout:hover {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  .stats-card-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  .stats-card-row .stat-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid var(--border);
+  }
+
+  .stats-card-row .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .stats-card-row .stat-num {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .stats-card-row .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .stat-change {
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .stat-change.up {
+    color: var(--success);
+  }
+
+  .stat-change.down {
+    color: var(--danger);
+  }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 20px;
+  }
+
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .panel {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .panel-action {
+    font-size: 12px;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .panel-body {
+    padding: 16px;
+  }
+
+  .func-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .func-btn {
+    padding: 14px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    border: none;
+  }
+
+  .func-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  .func-btn.bg1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+  .func-btn.bg2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+  .func-btn.bg3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+  .func-btn.bg4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+  .func-btn.bg5 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+  .func-btn.bg6 { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+  .func-btn.bg7 { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+  .func-btn.bg8 { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+
+  .ficon {
+    font-size: 22px;
+  }
+
+  .fname {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .ftype {
+    font-size: 10px;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .file-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .file-table th, .file-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .file-table th {
+    background: var(--bg);
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .file-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .file-icon {
+    font-size: 18px;
+  }
+
+  .file-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .fn {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .fs {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .status-badge.done {
+    background: #DCFCE7;
+    color: #16A34A;
+  }
+
+  .status-badge.processing {
+    background: #FEF9C3;
+    color: #CA8A04;
+  }
+
+  .status-badge.failed {
+    background: #FEE2E2;
+    color: #DC2626;
+  }
+
+  .action-link {
+    color: var(--primary);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .template-list {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .template-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .template-item:hover {
+    background: var(--primary-light);
+  }
+
+  .ti-icon {
+    font-size: 22px;
+  }
+
+  .ti-info {
+    flex: 1;
+  }
+
+  .ti-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .ti-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .ti-btn {
+    padding: 6px 14px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .ti-btn:hover {
+    background: var(--primary-dark);
+  }
+
+  .quick-ops {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .quick-op-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: background 0.2s;
+  }
+
+  .quick-op-item:hover {
+    background: var(--bg);
+  }
+
+  .qop-icon {
+    font-size: 20px;
+  }
+
+  .qop-text {
+    flex: 1;
+  }
+
+  .qop-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .qop-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .qop-arrow {
+    font-size: 16px;
+    color: var(--text-muted);
+  }
+
+  .loading-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+    background: var(--bg);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .loading-icon {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal-content {
+    background: var(--card);
+    border-radius: var(--radius);
+    width: 420px;
+    max-width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: slideUp 0.2s ease;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .modal-close {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .modal-body {
+    padding: 24px;
+  }
+
+  .user-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .profile-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#4F6EF7,#9B59B6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin-bottom: 12px;
+  }
+
+  .profile-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .profile-role {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg);
+    border-radius: 10px;
+  }
+
+  .info-label {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .info-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .modal-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .modal-btn.primary {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .modal-btn.primary:hover {
+    background: var(--primary-dark);
+  }
+
+  .modal-btn.danger {
+    background: rgba(239,68,68,0.1);
+    color: var(--danger);
+  }
+
+  .modal-btn.danger:hover {
+    background: var(--danger);
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo-area">
+    <div class="logo-title">📄 格式转换工具</div>
+    <div class="logo-sub">Format Converter Pro</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">主要功能</div>
+    <div class="nav-item" onclick="navigateTo('cockpit')">
+      <span class="nav-icon">🚀</span> 驾驶舱
+      <span class="nav-badge">管</span>
+    </div>
+    <div class="nav-item active" onclick="navigateTo('preview')">
+      <span class="nav-icon">🏠</span> 工具大厅
+    </div>
+    <div class="nav-item" onclick="navigateTo('ai-chat')">
+      <span class="nav-icon">🤖</span> AI助手
+      <span class="nav-badge new">新</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('doc-convert')">
+      <span class="nav-icon">🔄</span> 标准文档转换
+    </div>
+    <div class="nav-item" onclick="navigateTo('image-recog')">
+      <span class="nav-icon">🖼️</span> 图片格式识别
+    </div>
+    <div class="nav-item" onclick="navigateTo('param-convert')">
+      <span class="nav-icon">⚙️</span> 参数格式转换
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">文件操作</div>
+    <div class="nav-item" onclick="navigateTo('word-to-pdf')">
+      <span class="nav-icon">📄</span> Word ↔ PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('image-to-pdf')">
+      <span class="nav-icon">🖼️</span> 图片 → PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('mp4-to-mp3')">
+      <span class="nav-icon">🎬</span> MP4 → MP3
+    </div>
+    <div class="nav-item" onclick="navigateTo('pdf-merge')">
+      <span class="nav-icon">🗂️</span> PDF 合并
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">模版与工具</div>
+    <div class="nav-item" onclick="navigateTo('templates')">
+      <span class="nav-icon">📁</span> 格式模版库
+    </div>
+    <div class="nav-item" onclick="navigateTo('video-compress')">
+      <span class="nav-icon">🎞️</span> 视频压缩
+    </div>
+    <div class="nav-item" onclick="navigateTo('add-watermark')">
+      <span class="nav-icon">💧</span> 添加水印
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">账户</div>
+    <div class="nav-item" onclick="navigateTo('history')">
+      <span class="nav-icon">🕐</span> 历史记录
+    </div>
+    <div class="nav-item" onclick="navigateTo('settings')">
+      <span class="nav-icon">⚙️</span> 系统设置
+    </div>
+  </div>
+
+  <div class="sidebar-footer" onclick="openUserModal()">
+    <div class="avatar" id="sidebarAvatar">👤</div>
+    <div class="user-info">
+      <div class="user-name" id="sidebarUserName">点击登录</div>
+      <div class="user-role" id="sidebarUserRole">登录后享受更多功能</div>
+    </div>
+    <div class="notif-dot"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="userModalOverlay" style="display: none;" onclick="closeUserModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">👤 账户信息</div>
+      <div class="modal-close" onclick="closeUserModal()">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="user-profile">
+        <div class="profile-avatar" id="modalAvatar">👤</div>
+        <div class="profile-name" id="modalUserName">用户名</div>
+        <div class="profile-role" id="modalUserRole">普通用户</div>
+      </div>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-label">📱 手机号</div>
+          <div class="info-value" id="modalPhone">未绑定</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">💬 微信号</div>
+          <div class="info-value" id="modalWechat">未绑定</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">📧 邮箱</div>
+          <div class="info-value" id="modalEmail">未绑定</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn primary" onclick="navigateTo('settings'); closeUserModal()">⚙️ 修改资料</button>
+        <button class="modal-btn danger" onclick="logout()">🚪 退出登录</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <span>格式转换工具</span>
+      <span>›</span>
+      <span class="current" id="pageTitle">工具大厅</span>
+    </div>
+    <div class="topbar-right">
+      <button class="tb-btn ghost" id="loginBtn" onclick="handleLogin()">👤 登录</button>
+      <div class="user-dropdown" id="userDropdown" style="display: none;">
+        <div class="dropdown-content">
+          <div class="dropdown-avatar">👤</div>
+          <div class="dropdown-name" id="dropdownUserName">用户名</div>
+          <div class="dropdown-phone" id="dropdownPhone">📱 手机号</div>
+          <div class="dropdown-wechat" id="dropdownWechat">💬 微信号</div>
+          <div class="dropdown-email" id="dropdownEmail">📧 邮箱</div>
+          <hr>
+          <div class="dropdown-logout" onclick="logout()">🚪 退出登录</div>
+        </div>
+      </div>
+      <button class="tb-btn ghost">📂 打开文件</button>
+      <button class="tb-btn primary">⬆️ 上传转换</button>
+      <div class="tb-icon" title="通知">🔔</div>
+      <div class="tb-icon" title="帮助">❓</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- 工具大厅 -->
+    <div class="page-section active" id="preview-section">
+      <h1 class="page-title">🏠 工具大厅</h1>
+      
+      <div class="stats-card-row">
+        <div class="stat-card">
+          <div class="stat-icon blue">📊</div>
+          <div>
+            <div class="stat-num">1,256</div>
+            <div class="stat-label">本月转换次数</div>
+            <div class="stat-change up">↑ 23% 较上月</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✅</div>
+          <div>
+            <div class="stat-num">98.2%</div>
+            <div class="stat-label">转换成功率</div>
+            <div class="stat-change up">↑ 1.5% 较上月</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">📁</div>
+          <div>
+            <div class="stat-num">3.2 GB</div>
+            <div class="stat-label">累计处理文件</div>
+            <div class="stat-change up">↑ 230 MB 今日</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple">⏱️</div>
+          <div>
+            <div class="stat-num">1.8 s</div>
+            <div class="stat-label">平均转换耗时</div>
+            <div class="stat-change down">↓ 0.2s 更快</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">⚡ 快捷功能入口</div>
+              <span class="panel-action">查看全部 ›</span>
+            </div>
+            <div class="panel-body">
+              <div class="func-grid">
+                <div class="func-btn bg1" onclick="navigateTo('image-recog')">
+                  <span class="ficon">�️</span>
+                  <span class="fname">图片格式识别</span>
+                  <span class="ftype">智能提取字段</span>
+                </div>
+                <div class="func-btn bg2" onclick="navigateTo('doc-convert')">
+                  <span class="ficon">📄</span>
+                  <span class="fname">标准文档转换</span>
+                  <span class="ftype">自动识别规范</span>
+                </div>
+                <div class="func-btn bg3" onclick="navigateTo('param-convert')">
+                  <span class="ficon">⚙️</span>
+                  <span class="fname">自定义参数</span>
+                  <span class="ftype">批量格式调整</span>
+                </div>
+                <div class="func-btn bg4" onclick="navigateTo('word-to-pdf')">
+                  <span class="ficon">📝</span>
+                  <span class="fname">Word → PDF</span>
+                  <span class="ftype">.docx → .pdf</span>
+                </div>
+                <div class="func-btn bg5" onclick="navigateTo('word-to-pdf')">
+                  <span class="ficon">�</span>
+                  <span class="fname">PDF → Word</span>
+                  <span class="ftype">.pdf → .docx</span>
+                </div>
+                <div class="func-btn bg6" onclick="navigateTo('image-to-pdf')">
+                  <span class="ficon">🖼️</span>
+                  <span class="fname">图片 → PDF</span>
+                  <span class="ftype">.jpg/.png → .pdf</span>
+                </div>
+                <div class="func-btn bg7" onclick="navigateTo('mp4-to-mp3')">
+                  <span class="ficon">🎬</span>
+                  <span class="fname">MP4 → MP3</span>
+                  <span class="ftype">提取音频</span>
+                </div>
+                <div class="func-btn bg8" onclick="navigateTo('pdf-merge')">
+                  <span class="ficon">🗂️</span>
+                  <span class="fname">PDF 合并</span>
+                  <span class="ftype">自动/手动合并</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">🕐 最近转换记录</div>
+              <span class="panel-action" onclick="navigateTo('history')">查看全部 ›</span>
+            </div>
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th>文件名</th>
+                  <th>转换类型</th>
+                  <th>大小</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><div class="file-name"><span class="file-icon">📄</span><div class="file-text"><div class="fn">合同模板_2026.docx</div><div class="fs">Word文档</div></div></div></td>
+                  <td>Word → PDF</td>
+                  <td>1.2 MB</td>
+                  <td>16:18</td>
+                  <td><span class="status-badge done">✅ 完成</span></td>
+                  <td><span class="action-link">下载</span></td>
+                </tr>
+                <tr>
+                  <td><div class="file-name"><span class="file-icon">🖼️</span><div class="file-text"><div class="fn">扫描件_001.jpg</div><div class="fs">JPEG图片</div></div></div></td>
+                  <td>图片 → PDF</td>
+                  <td>3.8 MB</td>
+                  <td>15:52</td>
+                  <td><span class="status-badge processing">⏳ 处理中</span></td>
+                  <td><span class="action-link">查看</span></td>
+                </tr>
+                <tr>
+                  <td><div class="file-name"><span class="file-icon">🎬</span><div class="file-text"><div class="fn">会议录音.mp4</div><div class="fs">MP4视频</div></div></div></td>
+                  <td>MP4 → MP3</td>
+                  <td>128 MB</td>
+                  <td>14:30</td>
+                  <td><span class="status-badge done">✅ 完成</span></td>
+                  <td><span class="action-link">下载</span></td>
+                </tr>
+                <tr>
+                  <td><div class="file-name"><span class="file-icon">📋</span><div class="file-text"><div class="fn">年度报告.pdf</div><div class="fs">PDF文档</div></div></div></td>
+                  <td>PDF → Word</td>
+                  <td>5.6 MB</td>
+                  <td>11:05</td>
+                  <td><span class="status-badge failed">❌ 失败</span></td>
+                  <td><span class="action-link">重试</span></td>
+                </tr>
+                <tr>
+                  <td><div class="file-name"><span class="file-icon">📁</span><div class="file-text"><div class="fn">论文初稿_v3.docx</div><div class="fs">Word文档</div></div></div></td>
+                  <td>格式规范转换</td>
+                  <td>2.1 MB</td>
+                  <td>09:44</td>
+                  <td><span class="status-badge done">✅ 完成</span></td>
+                  <td><span class="action-link">下载</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="right-col">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">📁 热门模版</div>
+              <span class="panel-action" onclick="navigateTo('templates')">全部模版 ›</span>
+            </div>
+            <div class="template-list">
+              <div class="template-item" onclick="navigateTo('templates')">
+                <span class="ti-icon">📜</span>
+                <div class="ti-info">
+                  <div class="ti-name">房屋租赁合同</div>
+                  <div class="ti-desc">标准租房协议 · 即取即用</div>
+                </div>
+                <button class="ti-btn">下载</button>
+              </div>
+              <div class="template-item" onclick="navigateTo('templates')">
+                <span class="ti-icon">🏢</span>
+                <div class="ti-info">
+                  <div class="ti-name">采购合同模版</div>
+                  <div class="ti-desc">通用采购协议格式</div>
+                </div>
+                <button class="ti-btn">下载</button>
+              </div>
+              <div class="template-item" onclick="navigateTo('templates')">
+                <span class="ti-icon">🎓</span>
+                <div class="ti-info">
+                  <div class="ti-name">本科毕业论文</div>
+                  <div class="ti-desc">含封面/目录/正文格式</div>
+                </div>
+                <button class="ti-btn">下载</button>
+              </div>
+              <div class="template-item" onclick="navigateTo('templates')">
+                <span class="ti-icon">🎓</span>
+                <div class="ti-info">
+                  <div class="ti-name">硕士学位论文</div>
+                  <div class="ti-desc">研究生标准论文格式</div>
+                </div>
+                <button class="ti-btn">下载</button>
+              </div>
+              <div class="template-item" onclick="navigateTo('templates')">
+                <span class="ti-icon">�</span>
+                <div class="ti-info">
+                  <div class="ti-name">会议纪要模版</div>
+                  <div class="ti-desc">规范会议记录格式</div>
+                </div>
+                <button class="ti-btn">下载</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">🛠️ 其他实用工具</div>
+            </div>
+            <div class="quick-ops">
+              <div class="quick-op-item" onclick="navigateTo('video-compress')">
+                <span class="qop-icon">🎞️</span>
+                <div class="qop-text">
+                  <div class="qop-name">视频高压缩</div>
+                  <div class="qop-desc">H.265/AV1 高效压缩</div>
+                </div>
+                <span class="qop-arrow">›</span>
+              </div>
+              <div class="quick-op-item" onclick="navigateTo('add-watermark')">
+                <span class="qop-icon">💧</span>
+                <div class="qop-text">
+                  <div class="qop-name">添加水印</div>
+                  <div class="qop-desc">图片/文档批量水印</div>
+                </div>
+                <span class="qop-arrow">›</span>
+              </div>
+              <div class="quick-op-item" onclick="navigateTo('pdf-merge')">
+                <span class="qop-icon">🗂️</span>
+                <div class="qop-text">
+                  <div class="qop-name">PDF 自动合并</div>
+                  <div class="qop-desc">多文档一键合并</div>
+                </div>
+                <span class="qop-arrow">›</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 驾驶舱 -->
+    <div class="page-section" id="cockpit-section">
+      <h1 class="page-title">🚀 数据驾驶舱</h1>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">👥</div>
+          <div class="stat-value" id="cockpit-login">⏳ 加载中...</div>
+          <div class="stat-label">用户登录量</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">🤖</div>
+          <div class="stat-value" id="cockpit-ai">⏳ 加载中...</div>
+          <div class="stat-label">AI对话使用量</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">📥</div>
+          <div class="stat-value" id="cockpit-io">⏳ 加载中...</div>
+          <div class="stat-label">输入输出数据</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple">💰</div>
+          <div class="stat-value" id="cockpit-recharge">⏳ 加载中...</div>
+          <div class="stat-label">充值金额</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon cyan">💾</div>
+          <div class="stat-value" id="cockpit-storage">⏳ 加载中...</div>
+          <div class="stat-label">存储使用率</div>
+        </div>
+      </div>
+
+      <div class="period-tabs">
+        <div class="period-btn" onclick="loadData('week')">本周</div>
+        <div class="period-btn active" onclick="loadData('month')">本月</div>
+        <div class="period-btn" onclick="loadData('quarter')">本季</div>
+        <div class="period-btn" onclick="loadData('year')">本年</div>
+      </div>
+
+      <div class="loading-hint">
+        <span class="loading-icon">🔄</span>
+        <span>数据实时获取中，请稍候...</span>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-panel">
+          <div class="chart-header">👥 用户登录量</div>
+          <div class="chart-container" id="login-chart"></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-header">🤖 AI对话使用量</div>
+          <div class="chart-container" id="ai-chart"></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-header">📥 输入输出数据</div>
+          <div class="chart-container" id="io-chart"></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-header">💰 充值金额</div>
+          <div class="chart-container" id="recharge-chart"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI助手悬浮图标 -->
+    <div class="ai-float-btn" id="aiFloatBtn" onclick="toggleAiDialog()">
+      <span>🤖</span>
+    </div>
+
+    <!-- AI助手弹窗 -->
+    <div class="ai-dialog" id="aiDialog">
+      <div class="ai-dialog-header">
+        <div class="ai-dialog-title">🤖 AI助手</div>
+        <button class="ai-dialog-close" onclick="toggleAiDialog()">×</button>
+      </div>
+      <div class="ai-dialog-body" id="aiDialogBody">
+        <div class="chat-message bot">
+          您好！我是您的AI助手，有什么可以帮助您的？
+        </div>
+      </div>
+      <div class="ai-dialog-footer">
+        <input type="text" class="ai-dialog-input" id="aiDialogInput" placeholder="输入您的问题..." onkeydown="if(event.key=='Enter') sendAiDialogMessage()">
+        <button class="ai-dialog-send" onclick="sendAiDialogMessage()">➤</button>
+      </div>
+    </div>
+
+    <!-- AI助手 -->
+    <div class="page-section" id="ai-chat-section">
+      <h1 class="page-title">🤖 AI助手</h1>
+      
+      <div class="ai-chat-container">
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-message bot">
+            您好！我是您的AI助手，有什么可以帮助您的？
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" class="chat-input" id="chat-input" placeholder="输入您的问题..." onkeydown="if(event.key=='Enter') sendMessage()">
+          <button class="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 标准文档转换 -->
+    <div class="page-section" id="doc-convert-section">
+      <h1 class="page-title">🔄 标准文档转换</h1>
+      
+      <div class="upload-section">
+        <div class="upload-box" id="originalUpload" onclick="triggerUpload('original')">
+          <div class="upload-icon">📄</div>
+          <div class="upload-title">标准文档 (Word)</div>
+          <div class="upload-desc">点击或拖拽上传标准文档</div>
+          <div class="upload-types">
+            <span class="type-tag">.docx</span>
+            <span class="type-tag">.doc</span>
+            <span class="type-tag">.wps</span>
+          </div>
+        </div>
+
+        <div class="upload-box" id="modifiedUpload" onclick="triggerUpload('modified')">
+          <div class="upload-icon">✏️</div>
+          <div class="upload-title">修改文档 (Word)</div>
+          <div class="upload-desc">点击或拖拽上传修改后的文档</div>
+          <div class="upload-types">
+            <span class="type-tag">.docx</span>
+            <span class="type-tag">.doc</span>
+            <span class="type-tag">.wps</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <div class="preview-tabs">
+          <div class="preview-tab active" onclick="showDocConvertPreview('split')">🔍 对比预览</div>
+          <div class="preview-tab disabled" id="diffTab" onclick="showDocConvertPreview('diff')">📊 差异分析</div>
+        </div>
+
+        <div class="comparison-stats" id="doc-convert-comparisonStats" style="display:none">
+          <div class="stat-item">
+            <span class="stat-value">5</span>
+            <span class="stat-label">标题变更</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">12</span>
+            <span class="stat-label">段落修改</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">2</span>
+            <span class="stat-label">表格更新</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">8</span>
+            <span class="stat-label">序号调整</span>
+          </div>
+        </div>
+
+        <div class="legend-bar" id="doc-convert-legendBar" style="display:none">
+          <div class="legend-item">
+            <div class="legend-color standard"></div>
+            <span>标准文档内容</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color format"></div>
+            <span>格式转换</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color added"></div>
+            <span>新增内容</span>
+          </div>
+        </div>
+
+        <div class="preview-content">
+          <div class="preview-panel" id="doc-convert-standard-panel">
+            <div class="preview-header">
+              <div class="preview-title original">📄 标准文档预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('original')">清除</span>
+            </div>
+            <div class="document-preview" id="originalPreview">
+              <div class="title1">关于开展2024年度员工培训计划的通知</div>
+              
+              <div class="title2">一、培训目的</div>
+              为提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+              <div class="title2">二、培训对象</div>
+              公司全体在职员工。
+
+              <div class="title2">三、培训内容</div>
+              
+              <div class="title3">3.1 业务技能培训</div>
+              包括产品知识、销售技巧、客户服务等方面的专业培训。
+              
+              <div class="title3">3.2 管理能力提升</div>
+              针对中层管理人员的管理方法、团队建设等培训。
+              
+              <div class="title3">3.3 职业素养培训</div>
+              包括沟通技巧、时间管理、职业规划等内容。
+
+              <div class="title2">四、培训安排</div>
+              <div class="list-item">培训时间：2024年3月1日至12月31日</div>
+              <div class="list-item">培训地点：公司培训中心</div>
+              <div class="list-item">培训形式：线上线下相结合</div>
+
+              <div class="title2">五、培训要求</div>
+              1. 各部门须高度重视，合理安排员工参加培训；<br>
+              2. 参训人员须遵守培训纪律，认真学习；<br>
+              3. 培训结束后进行考核，考核结果纳入绩效评估。
+
+              <div class="title2">六、附件</div>
+              <table class="table">
+                <tr><th>序号</th><th>培训项目</th><th>时间</th><th>负责人</th></tr>
+                <tr><td>1</td><td>产品知识培训</td><td>3月</td><td>张三</td></tr>
+                <tr><td>2</td><td>销售技巧培训</td><td>4月</td><td>李四</td></tr>
+                <tr><td>3</td><td>管理能力培训</td><td>5月</td><td>王五</td></tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="preview-panel" id="doc-convert-modified-panel">
+            <div class="preview-header">
+              <div class="preview-title modified">✏️ 修改文档预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('modified')">清除</span>
+            </div>
+            <div class="document-preview" id="modifiedPreview">
+              <div class="title1">关于开展<span class="highlight">2025</span>年度员工培训计划的通知</div>
+              
+              <div class="title2">一、培训目的</div>
+              为<span class="highlight">全面</span>提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+              <div class="title2">二、培训对象</div>
+              公司全体在职员工及新入职员工。
+
+              <div class="title2">三、培训内容</div>
+              
+              <div class="title3">3.1 业务技能培训</div>
+              包括产品知识、销售技巧、客户服务、<span class="highlight">数据分析</span>等方面的专业培训。
+              
+              <div class="title3">3.2 管理能力提升</div>
+              针对中层及以上管理人员的管理方法、团队建设、<span class="highlight">领导力</span>等培训。
+              
+              <div class="title3">3.3 职业素养培训</div>
+              包括沟通技巧、时间管理、职业规划、<span class="highlight">创新思维</span>等内容。
+
+              <div class="title2">四、培训安排</div>
+              <div class="list-item">培训时间：<span class="highlight">2025年3月1日</span>至12月31日</div>
+              <div class="list-item">培训地点：公司培训中心及<span class="highlight">各分部</span></div>
+              <div class="list-item">培训形式：线上线下相结合 + <span class="highlight">外聘讲师</span></div>
+
+              <div class="title2">五、培训要求</div>
+              1. 各部门须高度重视，合理安排员工参加培训；<br>
+              2. 参训人员须遵守培训纪律，认真学习；<br>
+              3. 培训结束后进行考核，考核结果纳入<span class="highlight">年度</span>绩效评估。
+
+              <div class="title2">六、附件</div>
+              <table class="table">
+                <tr><th>序号</th><th>培训项目</th><th>时间</th><th>负责人</th></tr>
+                <tr><td>1</td><td>产品知识培训</td><td>3月</td><td>张三</td></tr>
+                <tr><td>2</td><td>销售技巧培训</td><td>4月</td><td>李四</td></tr>
+                <tr><td class="highlight">3</td><td class="highlight">管理能力培训</td><td class="highlight">5月</td><td class="highlight">王五</td></tr>
+                <tr><td class="highlight">4</td><td class="highlight">数据分析培训</td><td class="highlight">6月</td><td class="highlight">赵六</td></tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="preview-panel" id="doc-convert-diff-panel" style="display:none;">
+            <div class="diff-container">
+              <div class="diff-left">
+                <div class="preview-header">
+                  <div class="preview-title original">📄 标准文档预览</div>
+                </div>
+                <div class="document-preview" id="diffStandardPreview">
+                  <div class="title1">关于开展2024年度员工培训计划的通知</div>
+                  
+                  <div class="title2">一、培训目的</div>
+                  为提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+                  <div class="title2">二、培训对象</div>
+                  公司全体在职员工。
+
+                  <div class="title2">三、培训内容</div>
+                  
+                  <div class="title3">3.1 业务技能培训</div>
+                  包括产品知识、销售技巧、客户服务等方面的专业培训。
+                  
+                  <div class="title3">3.2 管理能力提升</div>
+                  针对中层管理人员的管理方法、团队建设等培训。
+                  
+                  <div class="title3">3.3 职业素养培训</div>
+                  包括沟通技巧、时间管理、职业规划等内容。
+
+                  <div class="title2">四、培训安排</div>
+                  <div class="list-item">培训时间：2024年3月1日至12月31日</div>
+                  <div class="list-item">培训地点：公司培训中心</div>
+                  <div class="list-item">培训形式：线上线下相结合</div>
+
+                  <div class="title2">五、培训要求</div>
+                  1. 各部门须高度重视，合理安排员工参加培训；<br>
+                  2. 参训人员须遵守培训纪律，认真学习；<br>
+                  3. 培训结束后进行考核，考核结果纳入绩效评估。
+
+                  <div class="title2">六、附件</div>
+                  <table class="table">
+                    <tr><th>序号</th><th>培训项目</th><th>时间</th><th>负责人</th></tr>
+                    <tr><td>1</td><td>产品知识培训</td><td>3月</td><td>张三</td></tr>
+                    <tr><td>2</td><td>销售技巧培训</td><td>4月</td><td>李四</td></tr>
+                    <tr><td>3</td><td>管理能力培训</td><td>5月</td><td>王五</td></tr>
+                  </table>
+                </div>
+              </div>
+              <div class="diff-right">
+                <div class="preview-header">
+                  <div class="preview-title modified">📊 差异分析结果</div>
+                  <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="showDocConvertPreview('split')">返回对比</span>
+                </div>
+                <div class="document-preview" id="diffPreview">
+                  <div class="title1">关于开展<span class="format-converted">2025</span>年度员工培训计划的通知</div>
+                  
+                  <div class="title2">一、培训目的</div>
+                  为<span class="added-content">全面</span>提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+                  <div class="title2">二、培训对象</div>
+                  公司全体在职员工<span class="added-content">及新入职员工</span>。
+
+                  <div class="title2">三、培训内容</div>
+                  
+                  <div class="title3">3.1 业务技能培训</div>
+                  包括产品知识、销售技巧、客户服务<span class="added-content">、数据分析</span>等方面的<span class="standard-content">专业培训</span>。
+                  
+                  <div class="title3">3.2 管理能力提升</div>
+                  针对中层<span class="added-content">及以上</span>管理人员的<span class="standard-content">管理方法、团队建设</span><span class="added-content">、领导力</span>等培训。
+                  
+                  <div class="title3">3.3 职业素养培训</div>
+                  包括<span class="standard-content">沟通技巧、时间管理、职业规划</span><span class="added-content">、创新思维</span>等内容。
+
+                  <div class="title2">四、培训安排</div>
+                  <div class="list-item">培训时间：<span class="format-converted">2025年3月1日</span>至12月31日</div>
+                  <div class="list-item">培训地点：公司培训中心<span class="added-content">及各分部</span></div>
+                  <div class="list-item">培训形式：线上线下相结合<span class="added-content"> + 外聘讲师</span></div>
+
+                  <div class="title2">五、培训要求</div>
+                  <span class="standard-content">1. 各部门须高度重视，合理安排员工参加培训；</span><br>
+                  <span class="standard-content">2. 参训人员须遵守培训纪律，认真学习；</span><br>
+                  <span class="standard-content">3. 培训结束后进行考核，考核结果纳入</span><span class="added-content">年度</span><span class="standard-content">绩效评估。</span>
+
+                  <div class="title2">六、附件</div>
+                  <table class="table">
+                    <tr><th>序号</th><th>培训项目</th><th>时间</th><th>负责人</th></tr>
+                    <tr><td>1</td><td><span class="standard-content">产品知识培训</span></td><td><span class="format-converted">3月</span></td><td><span class="standard-content">张三</span></td></tr>
+                    <tr><td>2</td><td><span class="standard-content">销售技巧培训</span></td><td><span class="format-converted">4月</span></td><td><span class="standard-content">李四</span></td></tr>
+                    <tr><td>3</td><td><span class="standard-content">管理能力培训</span></td><td><span class="format-converted">5月</span></td><td><span class="standard-content">王五</span></td></tr>
+                    <tr><td><span class="added-content">4</span></td><td><span class="added-content">数据分析培训</span></td><td><span class="format-converted">6月</span></td><td><span class="added-content">赵六</span></td></tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;" id="docConvertActions">
+        <button class="action-btn secondary" onclick="resetDocConvert()">取消</button>
+        <button class="action-btn primary" id="startConvertBtn" onclick="startDocConvert()">🚀 开始转换</button>
+        <button class="action-btn primary" id="exportBtn" style="display:none;" onclick="exportConvertedDoc()">📥 导出文档</button>
+      </div>
+    </div>
+
+    <!-- 图片格式识别 -->
+    <div class="page-section" id="image-recog-section">
+      <h1 class="page-title">🖼️ 图片格式识别</h1>
+      
+      <div class="upload-section">
+        <div class="upload-box" id="originalUpload" onclick="triggerUpload('original')">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-title">原图片</div>
+          <div class="upload-desc">点击或拖拽上传需要识别的图片</div>
+          <div class="upload-types">
+            <span class="type-tag">JPG</span>
+            <span class="type-tag">PNG</span>
+            <span class="type-tag">BMP</span>
+            <span class="type-tag">TIFF</span>
+          </div>
+        </div>
+
+        <div class="upload-box" id="modifiedUpload" onclick="triggerUpload('modified')">
+          <div class="upload-icon">✏️</div>
+          <div class="upload-title">修改文档 (Word)</div>
+          <div class="upload-desc">点击或拖拽上传目标格式文档</div>
+          <div class="upload-types">
+            <span class="type-tag">.docx</span>
+            <span class="type-tag">.doc</span>
+            <span class="type-tag">.wps</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <div class="preview-tabs">
+          <div class="preview-tab active" onclick="showImageRecogPreview('split')">🔍 对比预览</div>
+          <div class="preview-tab disabled" id="imageRecogDiffTab" onclick="showImageRecogPreview('diff')">📊 差异分析</div>
+        </div>
+
+        <div class="comparison-stats" id="imageRecogComparisonStats" style="display:none">
+          <div class="stat-item">
+            <span class="stat-value">3</span>
+            <span class="stat-label">一级标题</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">5</span>
+            <span class="stat-label">二级标题</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">2</span>
+            <span class="stat-label">表格识别</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">1</span>
+            <span class="stat-label">目录识别</span>
+          </div>
+        </div>
+
+        <div class="legend-bar" id="imageRecogLegendBar" style="display:none">
+          <div class="legend-item">
+            <div class="legend-color standard"></div>
+            <span>标准文档内容</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color format"></div>
+            <span>格式转换</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color added"></div>
+            <span>新增内容</span>
+          </div>
+        </div>
+
+        <div class="preview-content">
+          <div class="preview-panel" id="imageRecogStandardPanel">
+            <div class="preview-header">
+              <div class="preview-title original">🖼️ 原图预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('original')">清除</span>
+            </div>
+            <div class="image-preview-box">
+              <div class="image-placeholder">📄</div>
+              <div class="image-info">上传图片后显示预览</div>
+              <div class="field-tags">
+                <span class="field-tag h1">一级标题</span>
+                <span class="field-tag h2">二级标题</span>
+                <span class="field-tag h3">三级标题</span>
+                <span class="field-tag text">正文</span>
+                <span class="field-tag table">表格</span>
+                <span class="field-tag list">序号</span>
+                <span class="field-tag quote">引用</span>
+                <span class="field-tag toc">目录</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-panel" id="imageRecogModifiedPanel">
+            <div class="preview-header">
+              <div class="preview-title modified">✏️ 识别结果</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('modified')">清除</span>
+            </div>
+            <div class="document-preview" id="modifiedPreview">
+              <div class="title1">关于开展<span class="highlight">2025</span>年度员工培训计划的通知</div>
+              
+              <div class="title2">一、培训目的</div>
+              为<span class="highlight">全面</span>提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+              <div class="title2">二、培训对象</div>
+              公司全体在职员工及新入职员工。
+
+              <div class="title2">三、培训内容</div>
+              
+              <div class="title3">3.1 业务技能培训</div>
+              包括产品知识、销售技巧、客户服务、<span class="highlight">数据分析</span>等方面的专业培训。
+              
+              <div class="title3">3.2 管理能力提升</div>
+              针对中层及以上管理人员的管理方法、团队建设、<span class="highlight">领导力</span>等培训。
+
+              <div class="title2">四、培训安排</div>
+              <div class="list-item">培训时间：<span class="highlight">2025年1月1日至12月31日</span></div>
+              <div class="list-item">培训地点：公司培训中心及各分支机构</div>
+
+              <div class="title2">五、附件</div>
+              <table class="table">
+                <tr><th>序号</th><th>培训项目</th><th>时间</th></tr>
+                <tr><td>1</td><td>产品知识培训</td><td><span class="highlight">1月</span></td></tr>
+                <tr><td>2</td><td>销售技巧培训</td><td><span class="highlight">2月</span></td></tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="preview-panel" id="imageRecogDiffPanel" style="display:none;">
+            <div class="diff-container">
+              <div class="diff-left">
+                <div class="preview-header">
+                  <div class="preview-title original">🖼️ 原图预览</div>
+                </div>
+                <div class="image-preview-box">
+                  <div class="image-placeholder">📄</div>
+                  <div class="image-info">上传图片后显示预览</div>
+                  <div class="field-tags">
+                    <span class="field-tag h1">一级标题</span>
+                    <span class="field-tag h2">二级标题</span>
+                    <span class="field-tag h3">三级标题</span>
+                    <span class="field-tag text">正文</span>
+                    <span class="field-tag table">表格</span>
+                    <span class="field-tag list">序号</span>
+                    <span class="field-tag quote">引用</span>
+                    <span class="field-tag toc">目录</span>
+                  </div>
+                </div>
+              </div>
+              <div class="diff-right">
+                <div class="preview-header">
+                  <div class="preview-title modified">📊 差异分析结果</div>
+                  <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="showImageRecogPreview('split')">返回对比</span>
+                </div>
+                <div class="document-preview" id="diffPreview">
+                  <div class="title1">关于开展<span class="format-converted">2025</span>年度员工培训计划的通知</div>
+                  
+                  <div class="title2">一、培训目的</div>
+                  为<span class="added-content">全面</span>提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+                  <div class="title2">二、培训对象</div>
+                  公司全体在职员工<span class="added-content">及新入职员工</span>。
+
+                  <div class="title2">三、培训内容</div>
+                  
+                  <div class="title3">3.1 业务技能培训</div>
+                  包括产品知识、销售技巧、客户服务<span class="added-content">、数据分析</span>等方面的<span class="standard-content">专业培训</span>。
+                  
+                  <div class="title3">3.2 管理能力提升</div>
+                  针对中层<span class="added-content">及以上</span>管理人员的<span class="standard-content">管理方法、团队建设</span><span class="added-content">、领导力</span>等培训。
+
+                  <div class="title2">四、培训安排</div>
+                  <div class="list-item">培训时间：<span class="format-converted">2025年1月1日至12月31日</span></div>
+                  <div class="list-item">培训地点：公司培训中心<span class="added-content">及各分支机构</span></div>
+
+                  <div class="title2">五、附件</div>
+                  <table class="table">
+                    <tr><th>序号</th><th>培训项目</th><th>时间</th></tr>
+                    <tr><td>1</td><td><span class="standard-content">产品知识培训</span></td><td><span class="format-converted">1月</span></td></tr>
+                    <tr><td>2</td><td><span class="standard-content">销售技巧培训</span></td><td><span class="format-converted">2月</span></td></tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="convert-actions" id="imageRecogActions">
+        <button class="action-btn secondary" onclick="resetImageRecog()">取消</button>
+        <button class="action-btn primary" id="startImageRecogBtn" onclick="startImageRecog()">🚀 开始格式识别</button>
+        <button class="action-btn primary" id="exportImageRecogBtn" style="display:none;" onclick="exportImageRecogDoc()">📥 导出文档</button>
+      </div>
+    </div>
+
+    <!-- 参数格式转换 -->
+    <div class="page-section" id="param-convert-section">
+      <h1 class="page-title">⚙️ 参数格式转换</h1>
+      
+      <div class="upload-section" id="param-convert-upload">
+        <div class="upload-box" id="modifiedUpload" onclick="triggerUpload('modified')">
+          <div class="upload-icon">📄</div>
+          <div class="upload-title">修改文档 (Word)</div>
+          <div class="upload-desc">点击或拖拽上传需要转换的文档</div>
+          <div class="upload-types">
+            <span class="type-tag">.docx</span>
+            <span class="type-tag">.doc</span>
+            <span class="type-tag">.wps</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <div class="preview-tabs">
+          <div class="preview-tab active" onclick="showParamConvertPreview('split')">🔍 对比预览</div>
+          <div class="preview-tab disabled" id="paramConvertDiffTab" onclick="showParamConvertPreview('diff')">📊 差异分析</div>
+        </div>
+
+        <div class="comparison-stats" id="paramConvertComparisonStats" style="display:none">
+          <div class="stat-item">
+            <span class="stat-value">3</span>
+            <span class="stat-label">一级标题</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">5</span>
+            <span class="stat-label">二级标题</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">2</span>
+            <span class="stat-label">表格识别</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">1</span>
+            <span class="stat-label">目录识别</span>
+          </div>
+        </div>
+
+        <div class="legend-bar" id="paramConvertLegendBar" style="display:none">
+          <div class="legend-item">
+            <div class="legend-color standard"></div>
+            <span>标准文档内容</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color format"></div>
+            <span>格式转换</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color added"></div>
+            <span>新增内容</span>
+          </div>
+        </div>
+
+        <div class="preview-content">
+          <div class="preview-panel" id="paramConvertStandardPanel">
+            <div class="preview-header">
+              <div class="preview-title original">⚙️ 格式参数设置</div>
+            </div>
+            <div class="params-panel-inner">
+              <div class="panel-header">
+                <button class="tb-btn ghost" style="padding:6px 14px;font-size:12px">📋 保存预设</button>
+              </div>
+              <div class="params-grid">
+                <div class="param-group">
+                  <div class="param-group-title">📝 标题格式</div>
+                  <div class="param-item">
+                    <label class="param-label">一级标题字体</label>
+                    <select class="param-select">
+                      <option>黑体</option>
+                      <option>宋体</option>
+                      <option>微软雅黑</option>
+                      <option>仿宋</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">一级标题字号</label>
+                    <select class="param-select">
+                      <option>二号</option>
+                      <option>小二</option>
+                      <option>三号</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">二级标题字体</label>
+                    <select class="param-select">
+                      <option>黑体</option>
+                      <option>宋体</option>
+                      <option>微软雅黑</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">二级标题字号</label>
+                    <select class="param-select">
+                      <option>三号</option>
+                      <option>小三</option>
+                      <option>四号</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="param-group">
+                  <div class="param-group-title">📄 正文格式</div>
+                  <div class="param-item">
+                    <label class="param-label">正文字体</label>
+                    <select class="param-select">
+                      <option>宋体</option>
+                      <option>仿宋</option>
+                      <option>微软雅黑</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">正文字号</label>
+                    <select class="param-select">
+                      <option>小四</option>
+                      <option>四号</option>
+                      <option>五号</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">行间距</label>
+                    <select class="param-select">
+                      <option>单倍行距</option>
+                      <option>1.5倍行距</option>
+                      <option>2倍行距</option>
+                      <option>固定值 24磅</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">首行缩进</label>
+                    <select class="param-select">
+                      <option>2字符</option>
+                      <option>4字符</option>
+                      <option>无缩进</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="param-group">
+                  <div class="param-group-title">📊 表格格式</div>
+                  <div class="param-item">
+                    <label class="param-label">表格字体</label>
+                    <select class="param-select">
+                      <option>宋体</option>
+                      <option>仿宋</option>
+                      <option>微软雅黑</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">表格字号</label>
+                    <select class="param-select">
+                      <option>小四</option>
+                      <option>五号</option>
+                      <option>小五</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">边框样式</label>
+                    <div class="param-chips">
+                      <div class="param-chip active">全部边框</div>
+                      <div class="param-chip">仅外框</div>
+                      <div class="param-chip">无边框</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="param-group">
+                  <div class="param-group-title">🔢 序号格式</div>
+                  <div class="param-item">
+                    <label class="param-label">一级序号</label>
+                    <select class="param-select">
+                      <option>一、二、三...</option>
+                      <option>1、2、3...</option>
+                      <option>1. 2. 3.</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">二级序号</label>
+                    <select class="param-select">
+                      <option>（一）（二）（三）</option>
+                      <option>1.1 1.2 1.3</option>
+                      <option>(1) (2) (3)</option>
+                    </select>
+                  </div>
+                  <div class="param-item">
+                    <label class="param-label">三级序号</label>
+                    <select class="param-select">
+                      <option>1.1.1 1.1.2</option>
+                      <option>① ② ③</option>
+                      <option>a. b. c.</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-panel" id="paramConvertModifiedPanel">
+            <div class="preview-header">
+              <div class="preview-title modified">✏️ 转换预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('modified')">清除</span>
+            </div>
+            <div class="document-preview" id="modifiedPreview">
+              <div class="title1">关于开展<span class="highlight">2025</span>年度员工培训计划的通知</div>
+              <div class="title2">一、培训目的</div>
+              为<span class="highlight">全面</span>提升员工专业技能，增强团队协作能力，促进公司持续发展。
+              <div class="title2">二、培训对象</div>
+              公司全体在职员工及新入职员工。
+            </div>
+          </div>
+
+          <div class="preview-panel" id="paramConvertDiffPanel" style="display:none;">
+            <div class="diff-container">
+              <div class="diff-left">
+                <div class="preview-header">
+                  <div class="preview-title original">⚙️ 格式参数设置</div>
+                </div>
+                <div class="params-panel-inner">
+                  <div class="params-grid">
+                    <div class="param-group">
+                      <div class="param-group-title">📝 标题格式</div>
+                      <div class="param-item">
+                        <label class="param-label">一级标题字体</label>
+                        <select class="param-select">
+                          <option>黑体</option>
+                          <option>宋体</option>
+                          <option>微软雅黑</option>
+                          <option>仿宋</option>
+                        </select>
+                      </div>
+                      <div class="param-item">
+                        <label class="param-label">一级标题字号</label>
+                        <select class="param-select">
+                          <option>二号</option>
+                          <option>小二</option>
+                          <option>三号</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="param-group">
+                      <div class="param-group-title">📄 正文格式</div>
+                      <div class="param-item">
+                        <label class="param-label">正文字体</label>
+                        <select class="param-select">
+                          <option>宋体</option>
+                          <option>仿宋</option>
+                          <option>微软雅黑</option>
+                        </select>
+                      </div>
+                      <div class="param-item">
+                        <label class="param-label">行间距</label>
+                        <select class="param-select">
+                          <option>单倍行距</option>
+                          <option>1.5倍行距</option>
+                          <option>2倍行距</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="param-group">
+                      <div class="param-group-title">🔢 序号格式</div>
+                      <div class="param-item">
+                        <label class="param-label">一级序号</label>
+                        <select class="param-select">
+                          <option>一、二、三...</option>
+                          <option>1、2、3...</option>
+                          <option>1. 2. 3.</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="diff-right">
+                <div class="preview-header">
+                  <div class="preview-title modified">📊 差异分析结果</div>
+                  <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="showParamConvertPreview('split')">返回对比</span>
+                </div>
+                <div class="document-preview" id="diffPreview">
+                  <div class="title1">关于开展<span class="format-converted">2025</span>年度员工培训计划的通知</div>
+                  <div class="title2">一、培训目的</div>
+                  为<span class="added-content">全面</span>提升员工专业技能，增强团队协作能力，促进公司持续发展。
+                  <div class="title2">二、培训对象</div>
+                  公司全体在职员工<span class="added-content">及新入职员工</span>。
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;" id="paramConvertActions">
+        <button class="action-btn secondary" onclick="resetParamConvert()">取消</button>
+        <button class="action-btn primary" id="startParamConvertBtn" onclick="startParamConvert()">🚀 开始转换</button>
+        <button class="action-btn primary" id="exportParamConvertBtn" style="display:none;" onclick="exportParamConvertDoc()">📥 导出文档</button>
+      </div>
+    </div>
+
+    <!-- Word转PDF -->
+    <div class="page-section" id="word-to-pdf-section">
+      <h1 class="page-title">📄 Word ↔ PDF</h1>
+      
+      <div class="upload-section" id="word-pdf-upload">
+        <div class="upload-box" id="originalUpload" onclick="triggerUpload('original')">
+          <div class="upload-icon">📄</div>
+          <div class="upload-title">上传源文件</div>
+          <div class="upload-desc">点击或拖拽上传文件</div>
+          <div class="upload-types">
+            <span class="type-tag">.doc</span>
+            <span class="type-tag">.docx</span>
+            <span class="type-tag">.pdf</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <div class="preview-tabs">
+          <div class="preview-tab active">🔍 对比预览</div>
+        </div>
+
+        <div class="preview-content">
+          <div class="preview-panel">
+            <div class="preview-header">
+              <div class="preview-title original">📄 原文件预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('original')">清除</span>
+            </div>
+            <div class="document-preview" id="originalPreview">
+              <div class="title1">关于开展2024年度员工培训计划的通知</div>
+              
+              <div class="title2">一、培训目的</div>
+              为提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+              <div class="title2">二、培训对象</div>
+              公司全体在职员工。
+
+              <div class="title2">三、培训内容</div>
+              
+              <div class="title3">3.1 业务技能培训</div>
+              包括产品知识、销售技巧、客户服务等方面的专业培训。
+              
+              <div class="title3">3.2 管理能力提升</div>
+              针对中层管理人员的管理方法、团队建设等培训。
+            </div>
+          </div>
+
+          <div class="preview-panel">
+            <div class="preview-header">
+              <div class="preview-title modified">✏️ 转换预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('modified')">清除</span>
+            </div>
+            <div class="document-preview" id="modifiedPreview">
+              <div class="title1">关于开展<span class="highlight">2025</span>年度员工培训计划的通知</div>
+              
+              <div class="title2">一、培训目的</div>
+              为<span class="highlight">全面</span>提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+              <div class="title2">二、培训对象</div>
+              公司全体在职员工及新入职员工。
+
+              <div class="title2">三、培训内容</div>
+              
+              <div class="title3">3.1 业务技能培训</div>
+              包括产品知识、销售技巧、客户服务、<span class="highlight">数据分析</span>等方面的专业培训。
+              
+              <div class="title3">3.2 管理能力提升</div>
+              针对中层及以上管理人员的管理方法、团队建设、<span class="highlight">领导力</span>等培训。
+            </div>
+          </div>
+        </div>
+
+        <div class="convert-progress" id="word-pdf-progress" style="display: none;">
+          <div class="progress-header">
+            <span class="progress-title">📄 文档转换进度</span>
+            <span class="progress-text" id="word-pdf-progress-text">0%</span>
+          </div>
+          <div class="progress-bar-large">
+            <div class="progress-fill-large" id="word-pdf-progress-fill"></div>
+          </div>
+          <div class="progress-details">
+            <span id="word-pdf-progress-detail">正在准备转换...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="convert-actions">
+        <button class="action-btn secondary" onclick="navigateTo('preview')">返回首页</button>
+        <button class="action-btn primary" onclick="startWordPdfConvert()">🚀 开始转换</button>
+      </div>
+    </div>
+
+    <!-- 图片转PDF -->
+    <div class="page-section" id="image-to-pdf-section">
+      <h1 class="page-title">🖼️ 图片 → PDF</h1>
+      
+      <div class="upload-section" id="image-pdf-upload">
+        <div class="upload-box" id="originalUpload" onclick="triggerUpload('original')">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-title">上传图片</div>
+          <div class="upload-desc">点击或拖拽上传图片</div>
+          <div class="upload-types">
+            <span class="type-tag">JPG</span>
+            <span class="type-tag">PNG</span>
+            <span class="type-tag">BMP</span>
+            <span class="type-tag">TIFF</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <div class="preview-tabs">
+          <div class="preview-tab active">🔍 对比预览</div>
+        </div>
+
+        <div class="preview-content">
+          <div class="preview-panel">
+            <div class="preview-header">
+              <div class="preview-title original">🖼️ 原图预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('original')">清除</span>
+            </div>
+            <div class="image-preview-box">
+              <div class="image-placeholder">�</div>
+              <div class="image-info">上传图片后显示预览</div>
+            </div>
+          </div>
+
+          <div class="preview-panel">
+            <div class="preview-header">
+              <div class="preview-title modified">📋 PDF预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('modified')">清除</span>
+            </div>
+            <div class="document-preview">
+              <div class="title1">图片转PDF示例文档</div>
+              
+              <div class="title2">一、文档说明</div>
+              此文档由多张图片转换生成，包含以下内容：
+
+              <div class="list-item">• 第1页：封面图片</div>
+              <div class="list-item">• 第2页：内容图片A</div>
+              <div class="list-item">• 第3页：内容图片B</div>
+              <div class="list-item">• 第4页：内容图片C</div>
+
+              <div class="title2">二、转换设置</div>
+              <div class="list-item">• 图片质量：高</div>
+              <div class="list-item">• 页面方向：自动</div>
+              <div class="list-item">• 边框：无</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="convert-progress" id="image-pdf-progress" style="display: none;">
+          <div class="progress-header">
+            <span class="progress-title">🖼️ 图片转PDF进度</span>
+            <span class="progress-text" id="image-pdf-progress-text">0%</span>
+          </div>
+          <div class="progress-bar-large">
+            <div class="progress-fill-large" id="image-pdf-progress-fill"></div>
+          </div>
+          <div class="progress-details">
+            <span id="image-pdf-progress-detail">正在准备转换...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="convert-actions">
+        <button class="action-btn secondary" onclick="navigateTo('preview')">返回首页</button>
+        <button class="action-btn primary" onclick="startImagePdfConvert()">🚀 开始转换</button>
+      </div>
+    </div>
+
+    <!-- MP4转MP3 -->
+    <div class="page-section" id="mp4-to-mp3-section">
+      <h1 class="page-title">🎬 MP4 → MP3</h1>
+      
+      <div class="upload-section">
+        <div class="upload-box" id="originalUpload" onclick="triggerUpload('original')">
+          <div class="upload-icon">🎬</div>
+          <div class="upload-title">上传视频</div>
+          <div class="upload-desc">点击或拖拽上传视频文件</div>
+          <div class="upload-types">
+            <span class="type-tag">MP4</span>
+            <span class="type-tag">MOV</span>
+            <span class="type-tag">AVI</span>
+            <span class="type-tag">WMV</span>
+          </div>
+        </div>
+
+        <div class="upload-box" id="modifiedUpload" onclick="triggerUpload('modified')">
+          <div class="upload-icon">✏️</div>
+          <div class="upload-title">音频设置</div>
+          <div class="upload-desc">选择输出音频格式和质量</div>
+          <div class="upload-types">
+            <span class="type-tag">MP3</span>
+            <span class="type-tag">WAV</span>
+            <span class="type-tag">AAC</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <div class="preview-tabs">
+          <div class="preview-tab active">🔍 视频信息</div>
+        </div>
+
+        <div class="preview-content">
+          <div class="preview-panel">
+            <div class="preview-header">
+              <div class="preview-title original">🎬 原视频</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('original')">清除</span>
+            </div>
+            <div class="document-preview">
+              <div style="text-align:center;padding:40px 20px;">
+                <div style="font-size:60px;margin-bottom:16px;">🎬</div>
+                <div style="font-size:14px;color:var(--text-muted);margin-bottom:8px;">会议录音.mp4</div>
+                <div style="font-size:12px;color:var(--text-muted);">视频时长：02:34:15</div>
+                <div style="font-size:12px;color:var(--text-muted);">分辨率：1920 × 1080</div>
+                <div style="font-size:12px;color:var(--text-muted);">文件大小：128.5 MB</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-panel">
+            <div class="preview-header">
+              <div class="preview-title modified">🎵 音频预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('modified')">清除</span>
+            </div>
+            <div class="document-preview">
+              <div style="text-align:center;padding:40px 20px;">
+                <div style="font-size:60px;margin-bottom:16px;">🎵</div>
+                <div style="font-size:14px;color:var(--text-muted);margin-bottom:8px;">会议录音.mp3</div>
+                <div style="font-size:12px;color:var(--text-muted);">音频时长：02:34:15</div>
+                <div style="font-size:12px;color:var(--text-muted);">比特率：320 kbps</div>
+                <div style="font-size:12px;color:var(--text-muted);">预计大小：45.2 MB</div>
+                <div style="margin-top:20px;padding:12px;background:#DCFCE7;border-radius:8px;color:#16A34A;font-size:12px;">
+                  ✅ 预计压缩率：65%
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="convert-progress" id="mp4-progress" style="display: none;">
+          <div class="progress-header">
+            <span class="progress-title">🎵 音频转换进度</span>
+            <span class="progress-time" id="progress-time">00:00 / 02:34:15</span>
+          </div>
+          <div class="progress-bar-large">
+            <div class="progress-fill-large" id="mp4-progress-fill"></div>
+            <div class="progress-text" id="mp4-progress-text">0%</div>
+          </div>
+          <div class="progress-details">
+            <span>🎯 提取音频...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="convert-actions">
+        <button class="action-btn secondary" onclick="navigateTo('preview')">返回首页</button>
+        <button class="action-btn primary" onclick="startMp4Convert()">🚀 开始转换</button>
+      </div>
+    </div>
+
+    <!-- PDF合并 -->
+    <div class="page-section" id="pdf-merge-section">
+      <h1 class="page-title">🗂️ PDF 合并</h1>
+      
+      <div class="upload-section">
+        <div class="upload-box" id="originalUpload" onclick="triggerUpload('original')">
+          <div class="upload-icon">📋</div>
+          <div class="upload-title">上传PDF文件</div>
+          <div class="upload-desc">点击或拖拽上传PDF文件</div>
+          <div class="upload-types">
+            <span class="type-tag">PDF</span>
+          </div>
+        </div>
+
+        <div class="upload-box" id="modifiedUpload" onclick="triggerUpload('modified')">
+          <div class="upload-icon">✏️</div>
+          <div class="upload-title">合并设置</div>
+          <div class="upload-desc">选择合并顺序和方式</div>
+          <div class="upload-types">
+            <span class="type-tag">自动排序</span>
+            <span class="type-tag">手动排序</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-section">
+        <div class="preview-tabs">
+          <div class="preview-tab active">📋 已添加文件</div>
+        </div>
+
+        <div class="preview-content">
+          <div class="preview-panel">
+            <div class="preview-header">
+              <div class="preview-title original">📄 文件列表</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('original')">清除</span>
+            </div>
+            <div class="document-preview">
+              <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+                <span style="color:var(--text-muted);">1.</span>
+                <span>第一章_内容.pdf</span>
+                <span style="margin-left:auto;color:var(--text-muted);font-size:11px;">2.3 MB</span>
+              </div>
+              <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+                <span style="color:var(--text-muted);">2.</span>
+                <span>第二章_图表.pdf</span>
+                <span style="margin-left:auto;color:var(--text-muted);font-size:11px;">5.1 MB</span>
+              </div>
+              <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+                <span style="color:var(--text-muted);">3.</span>
+                <span>第三章_附录.pdf</span>
+                <span style="margin-left:auto;color:var(--text-muted);font-size:11px;">1.8 MB</span>
+              </div>
+              <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+                <span style="color:var(--text-muted);">4.</span>
+                <span>第四章_总结.pdf</span>
+                <span style="margin-left:auto;color:var(--text-muted);font-size:11px;">3.2 MB</span>
+              </div>
+              <div style="padding:8px 0;display:flex;align-items:center;gap:10px;font-weight:600;color:var(--primary);">
+                <span>合计:</span>
+                <span>4 个文件</span>
+                <span style="margin-left:auto;">12.4 MB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-panel">
+            <div class="preview-header">
+              <div class="preview-title modified">📋 合并预览</div>
+              <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('modified')">清除</span>
+            </div>
+            <div class="document-preview">
+              <div style="text-align:center;padding:40px 20px;">
+                <div style="font-size:60px;margin-bottom:16px;">📋</div>
+                <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px;">合并后文档预览</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">文档标题_合并版.pdf</div>
+                <div style="display:flex;justify-content:center;gap:20px;font-size:12px;color:var(--text-muted);">
+                  <span>📄 4 页</span>
+                  <span>📦 12.4 MB</span>
+                </div>
+                <div style="margin-top:20px;padding:12px;background:#DCFCE7;border-radius:8px;color:#16A34A;font-size:12px;">
+                  ✅ 就绪，可开始合并
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="convert-actions">
+        <button class="action-btn secondary" onclick="navigateTo('preview')">返回首页</button>
+        <button class="action-btn primary">🚀 开始合并</button>
+      </div>
+    </div>
+
+    <!-- 模板库 -->
+    <div class="page-section" id="templates-section">
+      <div class="section-header">
+        <h1 class="page-title">📁 格式模板库</h1>
+        <button class="action-btn secondary" id="refreshTemplatesBtn" onclick="refreshTemplates()">🔄 检查更新</button>
+      </div>
+      
+      <div class="template-categories">
+        <div class="category-tag active" onclick="showTemplateCategory('contract')">📄 合同模板</div>
+        <div class="category-tag" onclick="showTemplateCategory('thesis')">📝 高校毕业论文</div>
+        <div class="category-tag" onclick="showTemplateCategory('meeting')">📋 会议纪要</div>
+        <div class="category-tag" onclick="showTemplateCategory('report')">📊 报告模板</div>
+      </div>
+
+      <div class="update-status" id="updateStatus">
+        <span class="status-dot"></span>
+        <span>上次更新：2024年1月15日 14:30</span>
+        <span class="update-count">有 3 个新模板可更新</span>
+      </div>
+
+      <div class="template-list" id="contractTemplates">
+        <div class="template-card">
+          <div class="template-icon">📄</div>
+          <div class="template-info">
+            <div class="template-name">劳动合同（标准版）</div>
+            <div class="template-meta">适用：企业用工 | 页数：3页</div>
+            <div class="template-tags">
+              <span class="tag">最新</span>
+              <span class="tag">官方推荐</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📄</div>
+          <div class="template-info">
+            <div class="template-name">租赁合同（住宅）</div>
+            <div class="template-meta">适用：房屋租赁 | 页数：4页</div>
+            <div class="template-tags">
+              <span class="tag">更新</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📄</div>
+          <div class="template-info">
+            <div class="template-name">合作协议（通用版）</div>
+            <div class="template-meta">适用：商业合作 | 页数：6页</div>
+            <div class="template-tags"></div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📄</div>
+          <div class="template-info">
+            <div class="template-name">劳务外包合同</div>
+            <div class="template-meta">适用：外包服务 | 页数：5页</div>
+            <div class="template-tags"></div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="template-list" id="thesisTemplates" style="display:none;">
+        <div class="template-card">
+          <div class="template-icon">📝</div>
+          <div class="template-info">
+            <div class="template-name">本科毕业论文（文科）</div>
+            <div class="template-meta">适用：文科专业 | 格式：GB/T 7714</div>
+            <div class="template-tags">
+              <span class="tag">最新</span>
+              <span class="tag">高校通用</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📝</div>
+          <div class="template-info">
+            <div class="template-name">本科毕业论文（理工科）</div>
+            <div class="template-meta">适用：理工科专业 | 格式：GB/T 7714</div>
+            <div class="template-tags">
+              <span class="tag">最新</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📝</div>
+          <div class="template-info">
+            <div class="template-name">硕士学位论文</div>
+            <div class="template-meta">适用：硕士研究生 | 格式：GB/T 7714</div>
+            <div class="template-tags"></div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📝</div>
+          <div class="template-info">
+            <div class="template-name">毕业论文答辩PPT</div>
+            <div class="template-meta">适用：答辩展示 | 页数：15页</div>
+            <div class="template-tags">
+              <span class="tag">更新</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="template-list" id="meetingTemplates" style="display:none;">
+        <div class="template-card">
+          <div class="template-icon">📋</div>
+          <div class="template-info">
+            <div class="template-name">正式会议纪要</div>
+            <div class="template-meta">适用：公司会议 | 页数：2页</div>
+            <div class="template-tags">
+              <span class="tag">最新</span>
+              <span class="tag">官方推荐</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📋</div>
+          <div class="template-info">
+            <div class="template-name">项目例会纪要</div>
+            <div class="template-meta">适用：项目管理 | 页数：1页</div>
+            <div class="template-tags"></div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📋</div>
+          <div class="template-info">
+            <div class="template-name">周会纪要模板</div>
+            <div class="template-meta">适用：部门周会 | 页数：1页</div>
+            <div class="template-tags">
+              <span class="tag">更新</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="template-list" id="reportTemplates" style="display:none;">
+        <div class="template-card">
+          <div class="template-icon">📊</div>
+          <div class="template-info">
+            <div class="template-name">工作总结报告</div>
+            <div class="template-meta">适用：月度/季度总结 | 页数：4页</div>
+            <div class="template-tags">
+              <span class="tag">最新</span>
+              <span class="tag">官方推荐</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📊</div>
+          <div class="template-info">
+            <div class="template-name">项目可行性报告</div>
+            <div class="template-meta">适用：项目立项 | 页数：10页</div>
+            <div class="template-tags">
+              <span class="tag">最新</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📊</div>
+          <div class="template-info">
+            <div class="template-name">市场调研报告</div>
+            <div class="template-meta">适用：市场分析 | 页数：8页</div>
+            <div class="template-tags"></div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📊</div>
+          <div class="template-info">
+            <div class="template-name">年终述职报告</div>
+            <div class="template-meta">适用：年度考核 | 页数：6页</div>
+            <div class="template-tags">
+              <span class="tag">更新</span>
+            </div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+        <div class="template-card">
+          <div class="template-icon">📊</div>
+          <div class="template-info">
+            <div class="template-name">财务分析报告</div>
+            <div class="template-meta">适用：财务分析 | 页数：7页</div>
+            <div class="template-tags"></div>
+          </div>
+          <div class="template-actions">
+            <button class="template-btn">下载</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 视频压缩 -->
+    <div class="page-section" id="video-compress-section">
+      <h1 class="page-title">🎞️ 视频压缩</h1>
+      
+      <div class="upload-section" id="video-compress-upload">
+        <div class="upload-box" id="videoUpload" onclick="triggerVideoUpload()">
+          <div class="upload-icon">🎬</div>
+          <div class="upload-title">上传视频</div>
+          <div class="upload-desc">支持 MP4、MOV、AVI、WMV 等格式</div>
+          <input type="file" id="video-file-input" accept="video/*" style="display: none;" onchange="handleVideoUpload(this)">
+        </div>
+      </div>
+
+      <div class="compress-settings">
+        <div class="setting-group">
+          <h3>📦 压缩格式</h3>
+          <div class="compress-format-options">
+            <label class="format-option">
+              <input type="radio" name="compress-format" value="zip" checked>
+              <span class="format-icon">📁</span>
+              <span class="format-name">ZIP压缩</span>
+            </label>
+            <label class="format-option">
+              <input type="radio" name="compress-format" value="360">
+              <span class="format-icon">🔷</span>
+              <span class="format-name">360压缩</span>
+            </label>
+            <label class="format-option">
+              <input type="radio" name="compress-format" value="7z">
+              <span class="format-icon">🗜️</span>
+              <span class="format-name">7Z压缩</span>
+            </label>
+            <label class="format-option">
+              <input type="radio" name="compress-format" value="rar">
+              <span class="format-icon">📦</span>
+              <span class="format-name">RAR压缩</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <h3>⚙️ 压缩属性</h3>
+          <div class="compress-quality-options">
+            <label class="quality-option">
+              <input type="radio" name="compress-quality" value="fast">
+              <span class="quality-icon">⚡</span>
+              <div class="quality-info">
+                <span class="quality-name">快速</span>
+                <span class="quality-desc">文件大，速度快</span>
+              </div>
+            </label>
+            <label class="quality-option">
+              <input type="radio" name="compress-quality" value="normal" checked>
+              <span class="quality-icon">⚖️</span>
+              <div class="quality-info">
+                <span class="quality-name">正常</span>
+                <span class="quality-desc">文件适中，平衡</span>
+              </div>
+            </label>
+            <label class="quality-option">
+              <input type="radio" name="compress-quality" value="high">
+              <span class="quality-icon">🎯</span>
+              <div class="quality-info">
+                <span class="quality-name">高效</span>
+                <span class="quality-desc">文件小，压缩率高</span>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="compress-result" id="compress-result" style="display: none;">
+        <div class="result-header">
+          <h3>📊 压缩进度</h3>
+        </div>
+        <div class="progress-bar-large">
+          <div class="progress-fill-large" id="compress-progress-fill"></div>
+          <div class="progress-text" id="compress-progress-text">0%</div>
+        </div>
+        <div class="progress-details" id="compress-progress-detail">正在准备压缩...</div>
+        
+        <div class="download-section" id="download-section" style="display: none; margin-top: 20px;">
+          <div class="download-info">
+            <div class="download-icon">✅</div>
+            <div>
+              <div class="download-name">视频压缩包.zip</div>
+              <div class="download-meta">压缩前：128.5 MB → 压缩后：45.2 MB</div>
+            </div>
+          </div>
+          <button class="action-btn primary" onclick="downloadCompressedFile()">📥 下载压缩文件</button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+        <button class="action-btn secondary">取消</button>
+        <button class="action-btn primary" onclick="startVideoCompress()">🚀 开始压缩</button>
+      </div>
+    </div>
+
+    <!-- 添加水印 -->
+    <div class="page-section" id="add-watermark-section">
+      <h1 class="page-title">💧 添加水印</h1>
+      
+      <div class="watermark-main">
+        <div class="upload-section" id="watermark-upload">
+          <div class="upload-box" id="watermarkUpload" onclick="triggerWatermarkUpload()">
+            <div class="upload-icon">🖼️</div>
+            <div class="upload-title">上传文件</div>
+            <div class="upload-desc">支持图片、文档、PDF</div>
+            <input type="file" id="watermark-file-input" accept="image/*,.pdf,.doc,.docx" style="display: none;" onchange="handleWatermarkUpload(this)">
+          </div>
+        </div>
+
+        <div class="watermark-settings">
+          <div class="setting-group">
+            <h3>📝 水印类型</h3>
+            <div class="watermark-type-options">
+              <label class="type-option">
+                <input type="radio" name="watermark-type" value="text" checked onchange="switchWatermarkType()">
+                <span class="type-icon">📄</span>
+                <span class="type-name">文字水印</span>
+              </label>
+              <label class="type-option">
+                <input type="radio" name="watermark-type" value="image" onchange="switchWatermarkType()">
+                <span class="type-icon">🖼️</span>
+                <span class="type-name">图片水印</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-group" id="watermark-image-group" style="display: none;">
+            <h3>🖼️ 上传水印图片</h3>
+            <div class="upload-box small" id="watermark-image-upload" onclick="triggerWatermarkImageUpload()">
+              <div class="upload-icon">📁</div>
+              <div class="upload-title">上传图片</div>
+              <div class="upload-desc">支持 PNG、JPG 格式</div>
+              <input type="file" id="watermark-image-input" accept="image/*" style="display: none;" onchange="handleWatermarkImageUpload(this)">
+            </div>
+          </div>
+
+          <div class="setting-group" id="watermark-text-group">
+            <h3>🔤 水印文字</h3>
+            <input type="text" id="watermark-text" placeholder="请输入水印文字" value="内部文档" class="watermark-input" oninput="updateWatermarkPreview()">
+          </div>
+
+          <div class="setting-group">
+            <h3>⚙️ 水印设置</h3>
+            <div class="watermark-options">
+              <div class="option-row">
+                <label>透明度</label>
+                <input type="range" min="10" max="100" value="50" id="watermark-opacity" oninput="updateWatermarkPreview()">
+                <span id="opacity-value">50%</span>
+              </div>
+              <div class="option-row">
+                <label>字号</label>
+                <select id="watermark-font-size" onchange="updateWatermarkPreview()">
+                  <option value="12">12px</option>
+                  <option value="16">16px</option>
+                  <option value="20" selected>20px</option>
+                  <option value="24">24px</option>
+                  <option value="32">32px</option>
+                </select>
+              </div>
+              <div class="option-row">
+                <label>颜色</label>
+                <input type="color" id="watermark-color" value="#666666" oninput="updateWatermarkPreview()">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="watermark-preview-section">
+        <h3>👁️ 水印预览</h3>
+        <div class="watermark-preview-box" id="watermark-preview-box">
+          <div class="preview-bg">
+            <div class="preview-watermark" id="preview-watermark">内部文档</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="watermark-result" id="watermark-result" style="display: none;">
+        <div class="result-header">
+          <h3>📊 水印添加进度</h3>
+        </div>
+        <div class="progress-bar-large">
+          <div class="progress-fill-large" id="watermark-progress-fill"></div>
+          <div class="progress-text" id="watermark-progress-text">0%</div>
+        </div>
+        <div class="progress-details" id="watermark-progress-detail">正在准备添加水印...</div>
+        
+        <div class="download-section" id="watermark-download-section" style="display: none; margin-top: 20px;">
+          <div class="download-info">
+            <div class="download-icon">✅</div>
+            <div>
+              <div class="download-name">带水印文件.pdf</div>
+              <div class="download-meta">已成功添加水印</div>
+            </div>
+          </div>
+          <button class="action-btn primary" onclick="downloadWatermarkFile()">📥 下载文件</button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+        <button class="action-btn secondary">取消</button>
+        <button class="action-btn primary" id="watermark-submit-btn" onclick="startWatermark()" disabled>🚀 添加水印</button>
+      </div>
+    </div>
+
+    <!-- 历史记录 -->
+    <div class="page-section" id="history-section">
+      <h1 class="page-title">🕐 历史记录</h1>
+      
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>文件名</th>
+            <th>转换类型</th>
+            <th>大小</th>
+            <th>状态</th>
+            <th>时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>文档1.docx</td>
+            <td>Word转PDF</td>
+            <td>2.3 MB</td>
+            <td><span class="status-badge success">成功</span></td>
+            <td>2024-01-15 14:30</td>
+            <td>📥 🗑️</td>
+          </tr>
+          <tr>
+            <td>图片.png</td>
+            <td>图片转PDF</td>
+            <td>1.2 MB</td>
+            <td><span class="status-badge success">成功</span></td>
+            <td>2024-01-15 13:20</td>
+            <td>📥 🗑️</td>
+          </tr>
+          <tr>
+            <td>视频.mp4</td>
+            <td>MP4转MP3</td>
+            <td>15.6 MB</td>
+            <td><span class="status-badge processing">处理中</span></td>
+            <td>2024-01-15 12:10</td>
+            <td>⏳</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 系统设置 -->
+    <div class="page-section" id="settings-section">
+      <h1 class="page-title">⚙️ 系统设置</h1>
+      
+      <div class="settings-content">
+        <div class="settings-nav">
+          <div class="settings-nav-item active" onclick="showSettings('account')">👤 账户设置</div>
+          <div class="settings-nav-item" onclick="showSettings('security')">🔒 安全设置</div>
+          <div class="settings-nav-item" onclick="showSettings('notification')">🔔 通知设置</div>
+          <div class="settings-nav-item" onclick="showSettings('ai-agent')">🤖 AI智能体</div>
+        </div>
+
+        <div class="settings-panel active" id="account-panel">
+          <h2 style="margin-bottom: 20px;">账户信息</h2>
+          <div class="form-group">
+            <label class="form-label">用户名</label>
+            <input type="text" class="form-input" value="管理员">
+          </div>
+          <div class="form-group">
+            <label class="form-label">手机号</label>
+            <input type="tel" class="form-input" value="138****8888">
+          </div>
+          <div class="form-group">
+            <label class="form-label">微信号绑定</label>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span>💬 wx_****1234</span>
+              <button class="tb-btn ghost">解绑</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-panel" id="security-panel">
+          <h2 style="margin-bottom: 20px;">安全设置</h2>
+          <div class="form-group">
+            <label class="form-label">修改密码</label>
+            <input type="password" class="form-input" placeholder="输入新密码">
+          </div>
+        </div>
+
+        <div class="settings-panel" id="notification-panel">
+          <h2 style="margin-bottom: 20px;">通知设置</h2>
+          <div class="form-group">
+            <label class="form-label">邮件通知</label>
+            <input type="checkbox" checked>
+          </div>
+        </div>
+
+        <div class="settings-panel" id="ai-agent-panel">
+          <h2 style="margin-bottom: 20px;">🤖 AI智能体</h2>
+          
+          <div class="ai-tabs">
+            <div class="ai-tab active" onclick="showAiTab('config')">⚙️ AI智能体配置</div>
+            <div class="ai-tab" onclick="showAiTab('skills')">🧩 Skills技能管理</div>
+          </div>
+
+          <div class="ai-tab-content active" id="ai-config-tab">
+            <div class="ai-provider-tabs">
+              <div class="ai-provider-tab active" onclick="selectAiProvider('openai')">OpenAI</div>
+              <div class="ai-provider-tab" onclick="selectAiProvider('baidu')">百度文心一言</div>
+              <div class="ai-provider-tab" onclick="selectAiProvider('ali')">阿里通义千问</div>
+              <div class="ai-provider-tab" onclick="selectAiProvider('custom')">自定义API</div>
+            </div>
+            
+            <div class="api-config-form-modal">
+              <div class="form-group">
+                <label class="form-label">API密钥</label>
+                <input type="password" class="form-input" placeholder="请输入API Key" id="ai-api-key">
+              </div>
+              <div class="form-group">
+                <label class="form-label">API地址</label>
+                <input type="text" class="form-input" placeholder="https://api.openai.com/v1/chat/completions" id="ai-api-url">
+              </div>
+              <div class="form-group">
+                <label class="form-label">模型名称</label>
+                <select class="form-input" id="ai-model">
+                  <option value="gpt-4">GPT-4</option>
+                  <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                  <option value="gpt-3.5-turbo-16k">GPT-3.5 Turbo 16K</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">最大令牌数</label>
+                <input type="number" class="form-input" value="4096" id="ai-max-tokens">
+              </div>
+              <div class="form-group">
+                <label class="form-label">温度</label>
+                <input type="range" min="0" max="1" step="0.1" value="0.7" id="ai-temperature">
+                <span id="ai-temperature-value">0.7</span>
+              </div>
+            </div>
+            <button class="tb-btn primary" onclick="saveAiConfig()" style="margin-top: 20px;">保存配置</button>
+
+            <div style="margin-top: 30px;">
+              <h3>已配置的AI智能体</h3>
+              <div class="configured-agents">
+                <div class="agent-item">
+                  <div class="agent-info">
+                    <span class="agent-icon">🔷</span>
+                    <div>
+                      <div class="agent-name">OpenAI GPT-3.5 Turbo</div>
+                      <div class="agent-status active">已启用</div>
+                    </div>
+                  </div>
+                  <button class="tb-btn ghost" onclick="removeAgent(this)">删除</button>
+                </div>
+                <div class="agent-item">
+                  <div class="agent-info">
+                    <span class="agent-icon">🔶</span>
+                    <div>
+                      <div class="agent-name">百度文心一言 3.5</div>
+                      <div class="agent-status">已禁用</div>
+                    </div>
+                  </div>
+                  <button class="tb-btn ghost" onclick="toggleAgentStatus(this)">启用</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-tab-content" id="ai-skills-tab">
+            <div class="skills-list-modal">
+              <div class="skill-item">
+                <div class="skill-info">
+                  <span class="skill-icon">📄</span>
+                  <div>
+                    <div class="skill-name">文档格式转换</div>
+                    <div class="skill-desc">自动识别并转换文档格式</div>
+                  </div>
+                </div>
+                <div class="skill-status active">已部署</div>
+              </div>
+              <div class="skill-item">
+                <div class="skill-info">
+                  <span class="skill-icon">🖼️</span>
+                  <div>
+                    <div class="skill-name">图片格式识别</div>
+                    <div class="skill-desc">识别图片中的文字内容</div>
+                  </div>
+                </div>
+                <div class="skill-status active">已部署</div>
+              </div>
+              <div class="skill-item">
+                <div class="skill-info">
+                  <span class="skill-icon">⚙️</span>
+                  <div>
+                    <div class="skill-name">参数格式转换</div>
+                    <div class="skill-desc">批量转换文档参数格式</div>
+                  </div>
+                </div>
+                <button class="tb-btn ghost" onclick="deploySkill(this)">部署</button>
+              </div>
+              <div class="skill-item">
+                <div class="skill-info">
+                  <span class="skill-icon">🔍</span>
+                  <div>
+                    <div class="skill-name">智能搜索</div>
+                    <div class="skill-desc">智能语义搜索文档内容</div>
+                  </div>
+                </div>
+                <button class="tb-btn ghost" onclick="deploySkill(this)">部署</button>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+              <h3>添加自定义技能</h3>
+              <div class="skill-upload-box" onclick="triggerSkillUpload()">
+                <div class="upload-icon">📦</div>
+                <div class="upload-title">上传技能压缩包</div>
+                <div class="upload-desc">支持 .zip、.tar.gz 格式的技能包</div>
+                <input type="file" id="skill-upload" accept=".zip,.tar.gz" style="display: none;" onchange="handleSkillUpload(this)">
+              </div>
+              <div class="upload-progress" id="upload-progress" style="display: none; margin-top: 16px;">
+                <div class="progress-bar">
+                  <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <span id="progress-text">正在解析...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script>
+let isConversionDone = false;
+
+function showDocConvertPreview(type) {
+  if (type === 'diff' && !isConversionDone) {
+    return;
+  }
+
+  const tabs = document.querySelectorAll('#doc-convert-section .preview-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const standardPanel = document.getElementById('doc-convert-standard-panel');
+  const modifiedPanel = document.getElementById('doc-convert-modified-panel');
+  const diffPanel = document.getElementById('doc-convert-diff-panel');
+  const legendBar = document.getElementById('doc-convert-legendBar');
+  const previewContent = document.querySelector('#doc-convert-section .preview-content');
+
+  if (type === 'split') {
+    previewContent.style.gridTemplateColumns = '1fr 1fr';
+    standardPanel.style.display = 'block';
+    modifiedPanel.style.display = 'block';
+    diffPanel.style.display = 'none';
+    legendBar.style.display = 'none';
+  } else {
+    previewContent.style.gridTemplateColumns = '1fr';
+    standardPanel.style.display = 'none';
+    modifiedPanel.style.display = 'none';
+    diffPanel.style.display = 'block';
+    legendBar.style.display = 'flex';
+  }
+}
+
+function startDocConvert() {
+  const startBtn = document.getElementById('startConvertBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const diffTab = document.getElementById('diffTab');
+  const comparisonStats = document.getElementById('doc-convert-comparisonStats');
+
+  startBtn.disabled = true;
+  startBtn.innerHTML = '🔄 转换中...';
+
+  setTimeout(() => {
+    isConversionDone = true;
+
+    startBtn.style.display = 'none';
+    exportBtn.style.display = 'inline-flex';
+
+    diffTab.classList.remove('disabled');
+
+    comparisonStats.style.display = 'flex';
+
+    const tabs = document.querySelectorAll('#doc-convert-section .preview-tab');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    diffTab.classList.add('active');
+
+    const standardPanel = document.getElementById('doc-convert-standard-panel');
+    const modifiedPanel = document.getElementById('doc-convert-modified-panel');
+    const diffPanel = document.getElementById('doc-convert-diff-panel');
+    const legendBar = document.getElementById('doc-convert-legendBar');
+    const previewContent = document.querySelector('#doc-convert-section .preview-content');
+
+    previewContent.style.gridTemplateColumns = '1fr';
+    standardPanel.style.display = 'none';
+    modifiedPanel.style.display = 'none';
+    diffPanel.style.display = 'block';
+    legendBar.style.display = 'flex';
+
+  }, 2000);
+}
+
+function exportConvertedDoc() {
+  alert('📥 正在导出文档...\n\n转换后的文档将保存为标准格式。');
+}
+
+function resetDocConvert() {
+  isConversionDone = false;
+
+  const startBtn = document.getElementById('startConvertBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const diffTab = document.getElementById('diffTab');
+  const comparisonStats = document.getElementById('doc-convert-comparisonStats');
+
+  startBtn.style.display = 'inline-flex';
+  startBtn.disabled = false;
+  startBtn.innerHTML = '🚀 开始转换';
+  exportBtn.style.display = 'none';
+
+  diffTab.classList.add('disabled');
+
+  comparisonStats.style.display = 'none';
+
+  const tabs = document.querySelectorAll('#doc-convert-section .preview-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  tabs[0].classList.add('active');
+
+  const standardPanel = document.getElementById('doc-convert-standard-panel');
+  const modifiedPanel = document.getElementById('doc-convert-modified-panel');
+  const diffPanel = document.getElementById('doc-convert-diff-panel');
+  const legendBar = document.getElementById('doc-convert-legendBar');
+  const previewContent = document.querySelector('#doc-convert-section .preview-content');
+
+  previewContent.style.gridTemplateColumns = '1fr 1fr';
+  standardPanel.style.display = 'block';
+  modifiedPanel.style.display = 'block';
+  diffPanel.style.display = 'none';
+  legendBar.style.display = 'none';
+}
+
+let isImageRecogDone = false;
+let isParamConvertDone = false;
+
+function showImageRecogPreview(type) {
+  if (type === 'diff' && !isImageRecogDone) {
+    return;
+  }
+
+  const tabs = document.querySelectorAll('#image-recog-section .preview-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const standardPanel = document.getElementById('imageRecogStandardPanel');
+  const modifiedPanel = document.getElementById('imageRecogModifiedPanel');
+  const diffPanel = document.getElementById('imageRecogDiffPanel');
+  const legendBar = document.getElementById('imageRecogLegendBar');
+  const previewContent = document.querySelector('#image-recog-section .preview-content');
+
+  if (type === 'split') {
+    previewContent.style.gridTemplateColumns = '1fr 1fr';
+    standardPanel.style.display = 'block';
+    modifiedPanel.style.display = 'block';
+    diffPanel.style.display = 'none';
+    legendBar.style.display = 'none';
+  } else {
+    previewContent.style.gridTemplateColumns = '1fr';
+    standardPanel.style.display = 'none';
+    modifiedPanel.style.display = 'none';
+    diffPanel.style.display = 'block';
+    legendBar.style.display = 'flex';
+  }
+}
+
+function startImageRecog() {
+  const startBtn = document.getElementById('startImageRecogBtn');
+  const exportBtn = document.getElementById('exportImageRecogBtn');
+  const diffTab = document.getElementById('imageRecogDiffTab');
+  const comparisonStats = document.getElementById('imageRecogComparisonStats');
+
+  startBtn.disabled = true;
+  startBtn.innerHTML = '🔄 识别中...';
+
+  setTimeout(() => {
+    isImageRecogDone = true;
+
+    startBtn.style.display = 'none';
+    exportBtn.style.display = 'inline-flex';
+
+    diffTab.classList.remove('disabled');
+
+    comparisonStats.style.display = 'flex';
+
+    const tabs = document.querySelectorAll('#image-recog-section .preview-tab');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    diffTab.classList.add('active');
+
+    const standardPanel = document.getElementById('imageRecogStandardPanel');
+    const modifiedPanel = document.getElementById('imageRecogModifiedPanel');
+    const diffPanel = document.getElementById('imageRecogDiffPanel');
+    const legendBar = document.getElementById('imageRecogLegendBar');
+    const previewContent = document.querySelector('#image-recog-section .preview-content');
+
+    previewContent.style.gridTemplateColumns = '1fr';
+    standardPanel.style.display = 'none';
+    modifiedPanel.style.display = 'none';
+    diffPanel.style.display = 'block';
+    legendBar.style.display = 'flex';
+
+  }, 2000);
+}
+
+function exportImageRecogDoc() {
+  alert('📥 正在导出文档...\n\n转换后的文档将保存为标准格式。');
+}
+
+function resetImageRecog() {
+  isImageRecogDone = false;
+
+  const startBtn = document.getElementById('startImageRecogBtn');
+  const exportBtn = document.getElementById('exportImageRecogBtn');
+  const diffTab = document.getElementById('imageRecogDiffTab');
+  const comparisonStats = document.getElementById('imageRecogComparisonStats');
+
+  startBtn.style.display = 'inline-flex';
+  startBtn.disabled = false;
+  startBtn.innerHTML = '🚀 开始格式识别';
+  exportBtn.style.display = 'none';
+
+  diffTab.classList.add('disabled');
+
+  comparisonStats.style.display = 'none';
+
+  const tabs = document.querySelectorAll('#image-recog-section .preview-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  tabs[0].classList.add('active');
+
+  const standardPanel = document.getElementById('imageRecogStandardPanel');
+  const modifiedPanel = document.getElementById('imageRecogModifiedPanel');
+  const diffPanel = document.getElementById('imageRecogDiffPanel');
+  const legendBar = document.getElementById('imageRecogLegendBar');
+  const previewContent = document.querySelector('#image-recog-section .preview-content');
+
+  previewContent.style.gridTemplateColumns = '1fr 1fr';
+  standardPanel.style.display = 'block';
+  modifiedPanel.style.display = 'block';
+  diffPanel.style.display = 'none';
+  legendBar.style.display = 'none';
+}
+
+function showParamConvertPreview(type) {
+  if (type === 'diff' && !isParamConvertDone) {
+    return;
+  }
+
+  const tabs = document.querySelectorAll('#param-convert-section .preview-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const standardPanel = document.getElementById('paramConvertStandardPanel');
+  const modifiedPanel = document.getElementById('paramConvertModifiedPanel');
+  const diffPanel = document.getElementById('paramConvertDiffPanel');
+  const legendBar = document.getElementById('paramConvertLegendBar');
+  const previewContent = document.querySelector('#param-convert-section .preview-content');
+
+  if (type === 'split') {
+    previewContent.style.gridTemplateColumns = '1fr 1fr';
+    standardPanel.style.display = 'block';
+    modifiedPanel.style.display = 'block';
+    diffPanel.style.display = 'none';
+    legendBar.style.display = 'none';
+  } else {
+    previewContent.style.gridTemplateColumns = '1fr';
+    standardPanel.style.display = 'none';
+    modifiedPanel.style.display = 'none';
+    diffPanel.style.display = 'block';
+    legendBar.style.display = 'flex';
+  }
+}
+
+function startParamConvert() {
+  const startBtn = document.getElementById('startParamConvertBtn');
+  const exportBtn = document.getElementById('exportParamConvertBtn');
+  const diffTab = document.getElementById('paramConvertDiffTab');
+  const comparisonStats = document.getElementById('paramConvertComparisonStats');
+
+  startBtn.disabled = true;
+  startBtn.innerHTML = '🔄 转换中...';
+
+  setTimeout(() => {
+    isParamConvertDone = true;
+
+    startBtn.style.display = 'none';
+    exportBtn.style.display = 'inline-flex';
+
+    diffTab.classList.remove('disabled');
+
+    comparisonStats.style.display = 'flex';
+
+    const tabs = document.querySelectorAll('#param-convert-section .preview-tab');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    diffTab.classList.add('active');
+
+    const standardPanel = document.getElementById('paramConvertStandardPanel');
+    const modifiedPanel = document.getElementById('paramConvertModifiedPanel');
+    const diffPanel = document.getElementById('paramConvertDiffPanel');
+    const legendBar = document.getElementById('paramConvertLegendBar');
+    const previewContent = document.querySelector('#param-convert-section .preview-content');
+
+    previewContent.style.gridTemplateColumns = '1fr';
+    standardPanel.style.display = 'none';
+    modifiedPanel.style.display = 'none';
+    diffPanel.style.display = 'block';
+    legendBar.style.display = 'flex';
+
+  }, 2000);
+}
+
+function exportParamConvertDoc() {
+  alert('📥 正在导出文档...\n\n转换后的文档将保存为标准格式。');
+}
+
+function resetParamConvert() {
+  isParamConvertDone = false;
+
+  const startBtn = document.getElementById('startParamConvertBtn');
+  const exportBtn = document.getElementById('exportParamConvertBtn');
+  const diffTab = document.getElementById('paramConvertDiffTab');
+  const comparisonStats = document.getElementById('paramConvertComparisonStats');
+
+  startBtn.style.display = 'inline-flex';
+  startBtn.disabled = false;
+  startBtn.innerHTML = '🚀 开始转换';
+  exportBtn.style.display = 'none';
+
+  diffTab.classList.add('disabled');
+
+  comparisonStats.style.display = 'none';
+
+  const tabs = document.querySelectorAll('#param-convert-section .preview-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  tabs[0].classList.add('active');
+
+  const standardPanel = document.getElementById('paramConvertStandardPanel');
+  const modifiedPanel = document.getElementById('paramConvertModifiedPanel');
+  const diffPanel = document.getElementById('paramConvertDiffPanel');
+  const legendBar = document.getElementById('paramConvertLegendBar');
+  const previewContent = document.querySelector('#param-convert-section .preview-content');
+
+  previewContent.style.gridTemplateColumns = '1fr 1fr';
+  standardPanel.style.display = 'block';
+  modifiedPanel.style.display = 'block';
+  diffPanel.style.display = 'none';
+  legendBar.style.display = 'none';
+}
+
+function showTemplateCategory(category) {
+  const categories = ['contract', 'thesis', 'meeting', 'report'];
+  
+  categories.forEach(cat => {
+    const list = document.getElementById(cat + 'Templates');
+    const tag = document.querySelector(`.category-tag[onclick*="${cat}"]`);
+    
+    if (cat === category) {
+      list.style.display = 'grid';
+      tag.classList.add('active');
+    } else {
+      list.style.display = 'none';
+      tag.classList.remove('active');
+    }
+  });
+}
+
+function toggleAiDialog() {
+  const dialog = document.getElementById('aiDialog');
+  dialog.classList.toggle('show');
+}
+
+function sendAiDialogMessage() {
+  const input = document.getElementById('aiDialogInput');
+  const message = input.value.trim();
+  if (!message) return;
+
+  const body = document.getElementById('aiDialogBody');
+
+  const userMsg = document.createElement('div');
+  userMsg.className = 'chat-message user';
+  userMsg.textContent = message;
+  body.appendChild(userMsg);
+
+  input.value = '';
+  body.scrollTop = body.scrollHeight;
+
+  setTimeout(() => {
+    const botMsg = document.createElement('div');
+    botMsg.className = 'chat-message bot';
+    botMsg.textContent = '正在思考中...';
+    body.appendChild(botMsg);
+    body.scrollTop = body.scrollHeight;
+
+    setTimeout(() => {
+      botMsg.textContent = '抱歉，我还在学习中，暂时无法回答这个问题。您可以尝试咨询其他问题，或者使用我们的在线客服获取更多帮助。';
+      body.scrollTop = body.scrollHeight;
+    }, 1500);
+  }, 500);
+}
+
+function initAiFloatDrag() {
+  const btn = document.getElementById('aiFloatBtn');
+  let isDragging = false;
+  let startY, initialTop;
+
+  btn.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    startY = e.clientY;
+    initialTop = parseFloat(btn.style.top) || (window.innerHeight - 160);
+    btn.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const deltaY = e.clientY - startY;
+    const newTop = Math.max(20, Math.min(window.innerHeight - 80, initialTop + deltaY));
+    btn.style.top = newTop + 'px';
+    btn.style.right = '30px';
+    btn.style.left = 'auto';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      btn.style.cursor = 'move';
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initAiFloatDrag);
+
+function refreshTemplates() {
+  const refreshBtn = document.getElementById('refreshTemplatesBtn');
+  const updateStatus = document.getElementById('updateStatus');
+  
+  refreshBtn.disabled = true;
+  refreshBtn.innerHTML = '🔄 检查中...';
+  
+  setTimeout(() => {
+    refreshBtn.disabled = false;
+    refreshBtn.innerHTML = '🔄 检查更新';
+    
+    updateStatus.innerHTML = `
+      <span class="status-dot"></span>
+      <span>上次更新：${new Date().toLocaleString('zh-CN')}</span>
+      <span class="update-count">已更新到最新版本</span>
+    `;
+    
+    updateStatus.style.background = '#D1FAE5';
+    updateStatus.style.color = '#065F46';
+    setTimeout(() => {
+      updateStatus.style.background = '';
+      updateStatus.style.color = '';
+    }, 2000);
+  }, 1500);
+}
+
+function triggerUpload(type) {
+  const fileInput = type === 'original' ? 
+    document.getElementById('originalFile') : 
+    document.getElementById('modifiedFile');
+  if (fileInput) {
+    fileInput.click();
+  }
+}
+
+function clearUpload(type) {
+  const uploadBox = document.getElementById(type + 'Upload');
+  if (uploadBox) {
+    uploadBox.classList.remove('has-file');
+    const fileInfo = uploadBox.querySelector('.file-info');
+    if (fileInfo) {
+      fileInfo.remove();
+    }
+  }
+}
+
+const pageTitles = {
+  'preview': '工具大厅',
+  'cockpit': '驾驶舱',
+  'ai-chat': 'AI助手',
+  'doc-convert': '标准文档转换',
+  'image-recog': '图片格式识别',
+  'param-convert': '参数格式转换',
+  'word-to-pdf': 'Word转PDF',
+  'image-to-pdf': '图片转PDF',
+  'mp4-to-mp3': 'MP4转MP3',
+  'pdf-merge': 'PDF合并',
+  'templates': '格式模板库',
+  'video-compress': '视频压缩',
+  'add-watermark': '添加水印',
+  'history': '历史记录',
+  'settings': '系统设置'
+};
+
+const periodData = {
+  week: { login: [120, 145, 132, 156, 178, 165, 189], ai: [89, 102, 95, 112, 125, 118, 134], io: [12, 15, 14, 18, 22, 19, 25], recharge: [1200, 1500, 1350, 1600, 1800, 1700, 1950] },
+  month: { login: [1250, 1345, 1289, 1456, 1523, 1678, 1734], ai: [890, 956, 923, 1012, 1078, 1134, 1189], io: [125, 134, 128, 145, 152, 167, 173], recharge: [12500, 13450, 12890, 14560, 15230, 16780, 17340] },
+  quarter: { login: [12500, 13450, 14560, 15230], ai: [8900, 9560, 10120, 10780], io: [1250, 1345, 1456, 1523], recharge: [125000, 134500, 145600, 152300] },
+  year: { login: [125000, 134500, 145600, 152300], ai: [89000, 95600, 101200, 107800], io: [12500, 13450, 14560, 15230], recharge: [1250000, 1345000, 1456000, 1523000] }
+};
+
+function navigateTo(page) {
+  window.location.hash = page;
+}
+
+function handleHashChange() {
+  const page = window.location.hash.slice(1) || 'preview';
+  
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  document.querySelectorAll('.page-section').forEach(section => section.classList.remove('active'));
+  
+  document.querySelector(`.nav-item[onclick="navigateTo('${page}')"]`)?.classList.add('active');
+  document.getElementById(`${page}-section`)?.classList.add('active');
+  
+  document.getElementById('pageTitle').textContent = pageTitles[page] || page;
+  
+  if (page === 'cockpit') {
+    checkAdminAccess();
+    renderCharts('month');
+  }
+}
+
+function checkAdminAccess() {
+  const user = getUserInfo();
+  if (!user || !user.isLoggedIn || user.role !== 'admin') {
+    alert('⚠️ 驾驶舱仅限管理员账户访问！');
+    navigateTo('preview');
+  }
+}
+
+function getUserInfo() {
+  const userStr = localStorage.getItem('formatToolUser');
+  if (userStr) {
+    try {
+      return JSON.parse(userStr);
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+function isLoggedIn() {
+  const user = getUserInfo();
+  return user && user.isLoggedIn;
+}
+
+function updateLoginUI() {
+  const user = getUserInfo();
+  
+  const loginBtn = document.getElementById('loginBtn');
+  const sidebarUserName = document.getElementById('sidebarUserName');
+  const sidebarUserRole = document.getElementById('sidebarUserRole');
+  const sidebarAvatar = document.getElementById('sidebarAvatar');
+  
+  const dropdown = document.getElementById('userDropdown');
+  const dropdownAvatar = document.querySelector('.dropdown-avatar');
+  const dropdownName = document.getElementById('dropdownUserName');
+  const dropdownPhone = document.getElementById('dropdownPhone');
+  const dropdownWechat = document.getElementById('dropdownWechat');
+  const dropdownEmail = document.getElementById('dropdownEmail');
+  
+  const panel = document.getElementById('sidebarUserPanel');
+  const panelAvatar = document.querySelector('.panel-avatar');
+  const panelName = document.getElementById('panelUserName');
+  const panelPhone = document.getElementById('panelPhone');
+  const panelWechat = document.getElementById('panelWechat');
+  const panelEmail = document.getElementById('panelEmail');
+  
+  if (user && user.isLoggedIn) {
+    loginBtn.innerHTML = '👤 ' + (user.name || '用户');
+    loginBtn.onclick = toggleDropdown;
+    
+    sidebarUserName.textContent = user.name || '用户';
+    
+    if (user.role === 'admin') {
+      sidebarUserRole.innerHTML = '<span class="admin-badge">👑 管理员</span>';
+    } else {
+      sidebarUserRole.textContent = '免费版 · 今日剩余 8 次';
+    }
+    
+    const avatars = ['👤', '👩', '👨', '👧', '👦', '👩‍💼', '👨‍💼', '🧑‍💼'];
+    const idx = user.name ? user.name.length % avatars.length : 0;
+    sidebarAvatar.textContent = avatars[idx];
+    
+    dropdownAvatar.textContent = avatars[idx];
+    dropdownName.textContent = user.name || '用户';
+    dropdownPhone.textContent = '📱 ' + (user.phone || '未绑定手机号');
+    dropdownWechat.textContent = '💬 ' + (user.wechat || '未绑定微信号');
+    dropdownEmail.textContent = '📧 ' + (user.email || '未绑定邮箱');
+    
+    panelAvatar.textContent = avatars[idx];
+    panelName.textContent = user.name || '用户';
+    panelPhone.textContent = '📱 ' + (user.phone || '未绑定手机号');
+    panelWechat.textContent = '💬 ' + (user.wechat || '未绑定微信号');
+    panelEmail.textContent = '📧 ' + (user.email || '未绑定邮箱');
+    
+    dropdown.style.display = 'none';
+    panel.style.display = 'none';
+  } else {
+    loginBtn.innerHTML = '👤 登录';
+    loginBtn.onclick = goToLogin;
+    
+    sidebarUserName.textContent = '点击登录';
+    sidebarUserRole.textContent = '登录后享受更多功能';
+    sidebarAvatar.textContent = '👤';
+    
+    dropdown.style.display = 'none';
+    panel.style.display = 'none';
+  }
+}
+
+function toggleDropdown() {
+  const dropdown = document.getElementById('userDropdown');
+  dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+}
+
+function openUserModal() {
+  const user = getUserInfo();
+  if (!user || !user.isLoggedIn) {
+    goToLogin();
+    return;
+  }
+  
+  const avatars = ['👤', '👩', '👨', '👧', '👦', '👩‍💼', '👨‍💼', '🧑‍💼'];
+  const idx = user.name ? user.name.length % avatars.length : 0;
+  
+  document.getElementById('modalAvatar').textContent = avatars[idx];
+  document.getElementById('modalUserName').textContent = user.name || '用户';
+  document.getElementById('modalUserRole').textContent = user.role === 'admin' ? '👑 管理员' : '普通用户';
+  document.getElementById('modalPhone').textContent = user.phone || '未绑定';
+  document.getElementById('modalWechat').textContent = user.wechat || '未绑定';
+  document.getElementById('modalEmail').textContent = user.email || '未绑定';
+  
+  document.getElementById('userModalOverlay').style.display = 'flex';
+}
+
+function closeUserModal() {
+  document.getElementById('userModalOverlay').style.display = 'none';
+}
+
+function goToLogin() {
+  window.open('login.html', '_blank');
+}
+
+function logout() {
+  if (confirm('确定要退出账户吗？')) {
+    localStorage.removeItem('formatToolUser');
+    document.getElementById('userDropdown').style.display = 'none';
+    document.getElementById('userModalOverlay').style.display = 'none';
+    updateLoginUI();
+    navigateTo('preview');
+    alert('已成功退出账户');
+  }
+}
+
+function handleLogin() {
+  const user = getUserInfo();
+  if (user && user.isLoggedIn) {
+    logout();
+  } else {
+    goToLogin();
+  }
+}
+
+function setPeriod(period) {
+  document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  renderCharts(period);
+}
+
+function renderCharts(period) {
+  const data = periodData[period];
+  
+  document.getElementById('cockpit-login').textContent = formatNumber(data.login[data.login.length - 1]);
+  document.getElementById('cockpit-ai').textContent = formatNumber(data.ai[data.ai.length - 1]);
+  document.getElementById('cockpit-io').textContent = data.io[data.io.length - 1] + ' GB';
+  document.getElementById('cockpit-recharge').textContent = '¥ ' + formatNumber(data.recharge[data.recharge.length - 1]);
+  
+  renderChart('login-chart', data.login, '#4F6EF7');
+  renderChart('ai-chart', data.ai, '#11998e');
+  renderChart('io-chart', data.io, '#f7971e');
+  renderChart('recharge-chart', data.recharge, '#a18cd1');
+}
+
+function formatNumber(num) {
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k';
+  }
+  return num.toString();
+}
+
+function renderChart(containerId, data, color) {
+  const container = document.getElementById(containerId);
+  const max = Math.max(...data);
+  
+  container.innerHTML = data.map(val => {
+    const height = (val / max) * 120;
+    return `<div class="chart-bar" style="height: ${height}px; background: ${color};"></div>`;
+  }).join('');
+}
+
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  
+  if (!message) return;
+  
+  const messages = document.getElementById('chat-messages');
+  
+  messages.innerHTML += `<div class="chat-message user">${message}</div>`;
+  messages.innerHTML += `<div class="chat-message bot">收到您的消息："${message}"，我来帮您处理...</div>`;
+  
+  input.value = '';
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function showSettings(panel) {
+  document.querySelectorAll('.settings-nav-item').forEach(item => item.classList.remove('active'));
+  document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+  
+  event.target.classList.add('active');
+  document.getElementById(`${panel}-panel`).classList.add('active');
+}
+
+function selectAiProvider(provider) {
+  document.querySelectorAll('.ai-provider-tab').forEach(tab => tab.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  const apiUrl = document.getElementById('ai-api-url');
+  const modelSelect = document.getElementById('ai-model');
+  
+  modelSelect.innerHTML = '';
+  
+  switch(provider) {
+    case 'openai':
+      apiUrl.value = 'https://api.openai.com/v1/chat/completions';
+      addModelOption('gpt-4', 'GPT-4');
+      addModelOption('gpt-3.5-turbo', 'GPT-3.5 Turbo');
+      addModelOption('gpt-3.5-turbo-16k', 'GPT-3.5 Turbo 16K');
+      break;
+    case 'baidu':
+      apiUrl.value = 'https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions';
+      addModelOption('ernie-4.0', '文心一言 4.0');
+      addModelOption('ernie-3.5', '文心一言 3.5');
+      addModelOption('ernie-3.0', '文心一言 3.0');
+      break;
+    case 'ali':
+      apiUrl.value = 'https://dashscope.aliyuncs.com/api/text-generation/text-davinci-003';
+      addModelOption('qwen-max', '通义千问 Max');
+      addModelOption('qwen-plus', '通义千问 Plus');
+      addModelOption('qwen-turbo', '通义千问 Turbo');
+      break;
+    case 'custom':
+      apiUrl.value = '';
+      apiUrl.placeholder = '请输入自定义API地址';
+      addModelOption('custom', '自定义模型');
+      break;
+  }
+}
+
+function addModelOption(value, label) {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+  document.getElementById('ai-model').appendChild(option);
+}
+
+function showAiTab(tab) {
+  document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ai-tab-content').forEach(c => c.classList.remove('active'));
+  
+  event.target.classList.add('active');
+  document.getElementById(`ai-${tab}-tab`).classList.add('active');
+}
+
+function triggerSkillUpload() {
+  document.getElementById('skill-upload').click();
+}
+
+function handleSkillUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const progressContainer = document.getElementById('upload-progress');
+  const progressFill = document.getElementById('progress-fill');
+  const progressText = document.getElementById('progress-text');
+  
+  progressContainer.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressText.textContent = '正在上传...';
+
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 10;
+    progressFill.style.width = `${progress}%`;
+    
+    if (progress < 50) {
+      progressText.textContent = `正在上传... ${progress}%`;
+    } else if (progress < 80) {
+      progressText.textContent = '正在解析技能包...';
+    } else if (progress < 100) {
+      progressText.textContent = '正在部署...';
+    } else {
+      clearInterval(interval);
+      progressText.textContent = '✅ 部署成功！';
+      
+      setTimeout(() => {
+        progressContainer.style.display = 'none';
+        input.value = '';
+        alert('🎉 技能部署成功！');
+      }, 1000);
+    }
+  }, 200);
+}
+
+function removeAgent(btn) {
+  if (confirm('确定要删除这个AI智能体吗？')) {
+    btn.parentElement.remove();
+  }
+}
+
+function toggleAgentStatus(btn) {
+  const status = btn.parentElement.querySelector('.agent-status');
+  if (status.classList.contains('active')) {
+    status.classList.remove('active');
+    status.textContent = '已禁用';
+    btn.textContent = '启用';
+  } else {
+    status.classList.add('active');
+    status.textContent = '已启用';
+    btn.textContent = '禁用';
+  }
+}
+
+function triggerVideoUpload() {
+  document.getElementById('video-file-input').click();
+}
+
+function handleVideoUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const uploadBox = document.getElementById('videoUpload');
+  uploadBox.innerHTML = `
+    <div class="upload-icon">✅</div>
+    <div class="upload-title">${file.name}</div>
+    <div class="upload-desc">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+  `;
+}
+
+function startVideoCompress() {
+  const resultContainer = document.getElementById('compress-result');
+  const progressFill = document.getElementById('compress-progress-fill');
+  const progressText = document.getElementById('compress-progress-text');
+  const progressDetail = document.getElementById('compress-progress-detail');
+  const downloadSection = document.getElementById('download-section');
+  
+  resultContainer.style.display = 'block';
+  downloadSection.style.display = 'none';
+  progressFill.style.width = '0%';
+  progressText.textContent = '0%';
+  progressDetail.textContent = '正在准备压缩...';
+  
+  let progress = 0;
+  const steps = [
+    '📦 读取视频文件...',
+    '🔄 压缩处理中...',
+    '🗜️ 生成压缩包...',
+    '✅ 压缩完成！'
+  ];
+  let stepIndex = 0;
+  
+  const interval = setInterval(() => {
+    progress += 2;
+    progressFill.style.width = `${Math.min(progress, 100)}%`;
+    progressText.textContent = `${Math.min(progress, 100)}%`;
+    
+    const newStepIndex = Math.floor((progress / 100) * steps.length);
+    if (newStepIndex < steps.length && newStepIndex !== stepIndex) {
+      stepIndex = newStepIndex;
+      progressDetail.textContent = steps[stepIndex];
+    }
+    
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        downloadSection.style.display = 'flex';
+      }, 500);
+    }
+  }, 50);
+}
+
+function downloadCompressedFile() {
+  alert('🎉 压缩文件下载开始！');
+}
+
+function triggerWatermarkUpload() {
+  document.getElementById('watermark-file-input').click();
+}
+
+function handleWatermarkUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const uploadBox = document.getElementById('watermarkUpload');
+  uploadBox.innerHTML = `
+    <div class="upload-icon">✅</div>
+    <div class="upload-title">${file.name}</div>
+    <div class="upload-desc">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+  `;
+  
+  document.getElementById('watermark-submit-btn').disabled = false;
+}
+
+function updateWatermarkPreview() {
+  const type = document.querySelector('input[name="watermark-type"]:checked').value;
+  
+  if (type === 'text') {
+    const text = document.getElementById('watermark-text').value || '内部文档';
+    const opacity = document.getElementById('watermark-opacity').value / 100;
+    const fontSize = document.getElementById('watermark-font-size').value + 'px';
+    const color = document.getElementById('watermark-color').value;
+    
+    const previewWatermark = document.getElementById('preview-watermark');
+    previewWatermark.textContent = text;
+    previewWatermark.style.opacity = opacity;
+    previewWatermark.style.fontSize = fontSize;
+    previewWatermark.style.color = color;
+    previewWatermark.style.backgroundImage = 'none';
+    previewWatermark.style.width = 'auto';
+    previewWatermark.style.height = 'auto';
+  }
+}
+
+function switchWatermarkType() {
+  const type = document.querySelector('input[name="watermark-type"]:checked').value;
+  const textGroup = document.getElementById('watermark-text-group');
+  const imageGroup = document.getElementById('watermark-image-group');
+  const textInput = document.getElementById('watermark-text');
+  
+  if (type === 'text') {
+    textGroup.style.display = 'block';
+    imageGroup.style.display = 'none';
+    textInput.disabled = false;
+    updateWatermarkPreview();
+  } else {
+    textGroup.style.display = 'none';
+    imageGroup.style.display = 'block';
+    textInput.disabled = true;
+    const previewWatermark = document.getElementById('preview-watermark');
+    previewWatermark.textContent = '🖼️ 图片水印';
+    previewWatermark.style.fontSize = '24px';
+  }
+}
+
+function triggerWatermarkImageUpload() {
+  document.getElementById('watermark-image-input').click();
+}
+
+function handleWatermarkImageUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const uploadBox = document.getElementById('watermark-image-upload');
+  uploadBox.innerHTML = `
+    <div class="upload-icon">✅</div>
+    <div class="upload-title">${file.name}</div>
+    <div class="upload-desc">${(file.size / 1024).toFixed(1)} KB</div>
+  `;
+  
+  const previewWatermark = document.getElementById('preview-watermark');
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    previewWatermark.textContent = '';
+    previewWatermark.style.backgroundImage = `url(${e.target.result})`;
+    previewWatermark.style.backgroundSize = 'contain';
+    previewWatermark.style.backgroundRepeat = 'no-repeat';
+    previewWatermark.style.backgroundPosition = 'center';
+    previewWatermark.style.width = '100px';
+    previewWatermark.style.height = '100px';
+    previewWatermark.style.opacity = document.getElementById('watermark-opacity').value / 100;
+  };
+  reader.readAsDataURL(file);
+}
+
+function startWatermark() {
+  const resultContainer = document.getElementById('watermark-result');
+  const progressFill = document.getElementById('watermark-progress-fill');
+  const progressText = document.getElementById('watermark-progress-text');
+  const progressDetail = document.getElementById('watermark-progress-detail');
+  const downloadSection = document.getElementById('watermark-download-section');
+  
+  resultContainer.style.display = 'block';
+  downloadSection.style.display = 'none';
+  progressFill.style.width = '0%';
+  progressText.textContent = '0%';
+  progressDetail.textContent = '正在准备添加水印...';
+  
+  let progress = 0;
+  const steps = [
+    '📦 读取文件...',
+    '✏️ 添加水印...',
+    '💧 处理中...',
+    '✅ 完成！'
+  ];
+  let stepIndex = 0;
+  
+  const interval = setInterval(() => {
+    progress += 2;
+    progressFill.style.width = `${Math.min(progress, 100)}%`;
+    progressText.textContent = `${Math.min(progress, 100)}%`;
+    
+    const newStepIndex = Math.floor((progress / 100) * steps.length);
+    if (newStepIndex < steps.length && newStepIndex !== stepIndex) {
+      stepIndex = newStepIndex;
+      progressDetail.textContent = steps[stepIndex];
+    }
+    
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        downloadSection.style.display = 'flex';
+      }, 500);
+    }
+  }, 50);
+}
+
+function downloadWatermarkFile() {
+  alert('🎉 带水印文件下载开始！');
+}
+
+document.getElementById('watermark-opacity').addEventListener('input', function(e) {
+  document.getElementById('opacity-value').textContent = e.target.value + '%';
+});
+
+function startWordPdfConvert() {
+  const progressContainer = document.getElementById('word-pdf-progress');
+  const progressFill = document.getElementById('word-pdf-progress-fill');
+  const progressText = document.getElementById('word-pdf-progress-text');
+  const progressDetail = document.getElementById('word-pdf-progress-detail');
+  
+  progressContainer.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressText.textContent = '0%';
+  progressDetail.textContent = '正在准备转换...';
+  
+  let progress = 0;
+  const steps = [
+    '📄 读取文档内容...',
+    '🔄 转换格式...',
+    '📊 优化布局...',
+    '✅ 完成！'
+  ];
+  let stepIndex = 0;
+  
+  const interval = setInterval(() => {
+    progress += 2;
+    progressFill.style.width = `${Math.min(progress, 100)}%`;
+    progressText.textContent = `${Math.min(progress, 100)}%`;
+    
+    const newStepIndex = Math.floor((progress / 100) * steps.length);
+    if (newStepIndex < steps.length && newStepIndex !== stepIndex) {
+      stepIndex = newStepIndex;
+      progressDetail.textContent = steps[stepIndex];
+    }
+    
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        alert('🎉 Word转PDF转换完成！');
+      }, 500);
+    }
+  }, 50);
+}
+
+function startImagePdfConvert() {
+  const progressContainer = document.getElementById('image-pdf-progress');
+  const progressFill = document.getElementById('image-pdf-progress-fill');
+  const progressText = document.getElementById('image-pdf-progress-text');
+  const progressDetail = document.getElementById('image-pdf-progress-detail');
+  
+  progressContainer.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressText.textContent = '0%';
+  progressDetail.textContent = '正在准备转换...';
+  
+  let progress = 0;
+  const steps = [
+    '🖼️ 读取图片...',
+    '🔄 转换格式...',
+    '📄 生成PDF...',
+    '✅ 完成！'
+  ];
+  let stepIndex = 0;
+  
+  const interval = setInterval(() => {
+    progress += 2;
+    progressFill.style.width = `${Math.min(progress, 100)}%`;
+    progressText.textContent = `${Math.min(progress, 100)}%`;
+    
+    const newStepIndex = Math.floor((progress / 100) * steps.length);
+    if (newStepIndex < steps.length && newStepIndex !== stepIndex) {
+      stepIndex = newStepIndex;
+      progressDetail.textContent = steps[stepIndex];
+    }
+    
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        alert('🎉 图片转PDF转换完成！');
+      }, 500);
+    }
+  }, 50);
+}
+
+function startMp4Convert() {
+  const progressContainer = document.getElementById('mp4-progress');
+  const progressFill = document.getElementById('mp4-progress-fill');
+  const progressText = document.getElementById('mp4-progress-text');
+  const progressTime = document.getElementById('progress-time');
+  const progressDetails = document.querySelector('.progress-details span');
+  
+  progressContainer.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressText.textContent = '0%';
+  progressTime.textContent = '00:00 / 02:34:15';
+  
+  let progress = 0;
+  const steps = [
+    '🎯 提取音频轨道...',
+    '🔄 转换音频编码...',
+    '🎵 优化音质...',
+    '📦 封装输出文件...',
+    '✅ 完成！'
+  ];
+  let stepIndex = 0;
+  
+  const interval = setInterval(() => {
+    progress += 2;
+    progressFill.style.width = `${Math.min(progress, 100)}%`;
+    progressText.textContent = `${Math.min(progress, 100)}%`;
+    
+    const elapsedSeconds = Math.floor((progress / 100) * 154 * 60);
+    const hours = Math.floor(elapsedSeconds / 3600);
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+    const seconds = elapsedSeconds % 60;
+    progressTime.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} / 02:34:15`;
+    
+    const newStepIndex = Math.floor((progress / 100) * steps.length);
+    if (newStepIndex < steps.length && newStepIndex !== stepIndex) {
+      stepIndex = newStepIndex;
+      progressDetails.textContent = steps[stepIndex];
+    }
+    
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        alert('🎉 MP4转MP3转换完成！');
+      }, 500);
+    }
+  }, 50);
+}
+
+function saveAiConfig() {
+  const config = {
+    apiKey: document.getElementById('ai-api-key').value,
+    apiUrl: document.getElementById('ai-api-url').value,
+    model: document.getElementById('ai-model').value,
+    maxTokens: document.getElementById('ai-max-tokens').value,
+    temperature: document.getElementById('ai-temperature').value
+  };
+  
+  localStorage.setItem('aiConfig', JSON.stringify(config));
+  alert('✅ AI智能体配置已保存！');
+}
+
+function saveAiConfigAndClose() {
+  saveAiConfig();
+  closeAiConfigModal();
+}
+
+function openAiConfigModal() {
+  document.getElementById('ai-config-overlay').classList.add('show');
+}
+
+function closeAiConfigModal() {
+  document.getElementById('ai-config-overlay').classList.remove('show');
+}
+
+function openSkillModal() {
+  document.getElementById('skill-overlay').classList.add('show');
+}
+
+function closeSkillModal() {
+  document.getElementById('skill-overlay').classList.remove('show');
+}
+
+function addCustomSkill() {
+  alert('添加自定义技能功能即将上线！');
+}
+
+function deploySkill(btn) {
+  btn.textContent = '部署中...';
+  btn.disabled = true;
+  
+  setTimeout(() => {
+    btn.textContent = '已部署';
+    btn.classList.remove('ghost');
+    btn.classList.add('deployed');
+  }, 1500);
+}
+
+function loadData(period) {
+  document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  document.getElementById('cockpit-login').textContent = '⏳ 加载中...';
+  document.getElementById('cockpit-ai').textContent = '⏳ 加载中...';
+  document.getElementById('cockpit-io').textContent = '⏳ 加载中...';
+  document.getElementById('cockpit-recharge').textContent = '⏳ 加载中...';
+  document.getElementById('cockpit-storage').textContent = '⏳ 加载中...';
+  
+  setTimeout(() => {
+    alert('正在从服务器获取实时数据...\n\n周期: ' + {
+      'week': '本周',
+      'month': '本月',
+      'quarter': '本季',
+      'year': '本年'
+    }[period]);
+  }, 500);
+}
+
+window.addEventListener('hashchange', handleHashChange);
+document.addEventListener('DOMContentLoaded', () => {
+  handleHashChange();
+  updateLoginUI();
+  
+  if (window.location.hash.slice(1) === 'cockpit') {
+    checkAdminAccess();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('userDropdown');
+  const loginBtn = document.getElementById('loginBtn');
+  
+  if (dropdown.style.display === 'block' && !loginBtn.contains(e.target) && !dropdown.contains(e.target)) {
+    dropdown.style.display = 'none';
+  }
+});
+</script>
+
+</body>
+</html>

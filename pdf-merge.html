@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF合并 - 格式转换工具</title>
+<script>
+  // 自动重定向到单页应用
+  window.location.href = 'index.html#pdf-merge';
+</script>
+<style>
+  :root {
+    --primary: #4F6EF7;
+    --primary-light: #EEF1FE;
+    --primary-dark: #3451D1;
+    --bg: #F0F2F8;
+    --sidebar-bg: #1E2440;
+    --sidebar-hover: #2A3258;
+    --sidebar-active: #4F6EF7;
+    --card: #FFFFFF;
+    --text: #1A1F36;
+    --text-muted: #8A93B2;
+    --border: #E4E7F0;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --shadow: 0 2px 16px rgba(79,110,247,0.08);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+  .sidebar {
+    width: 220px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 0; }
+
+  .logo-area {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .logo-title { font-size: 17px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .logo-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+  .nav-section { padding: 14px 0 4px; }
+  .nav-section-label {
+    font-size: 10px; color: rgba(255,255,255,0.3);
+    padding: 0 20px 6px;
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 0;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px; font-weight: 500;
+    transition: all 0.18s;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
+  .nav-item.active {
+    background: var(--sidebar-active);
+    color: #fff;
+    font-weight: 700;
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: #fff; border-radius: 0 2px 2px 0;
+  }
+  .nav-icon { font-size: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--primary);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .nav-badge.new { background: var(--danger); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#4F6EF7,#9B59B6); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .user-info { flex: 1; }
+  .user-name { font-size: 12px; color: #fff; font-weight: 600; }
+  .user-role { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    height: 60px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .breadcrumb .current { color: var(--text); font-weight: 700; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .tb-btn {
+    padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+    display: flex; align-items: center; gap: 6px; transition: all 0.18s;
+  }
+  .tb-btn.primary { background: var(--primary); color: #fff; }
+  .tb-btn.primary:hover { background: var(--primary-dark); }
+  .tb-btn.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .tb-btn.ghost:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .tb-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+  .content { flex: 1; overflow-y: auto; padding: 20px 28px; }
+  .content::-webkit-scrollbar { width: 6px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .notif-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); display: inline-block; }
+
+  .upload-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .upload-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 2px dashed var(--border);
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .upload-box:hover { border-color: var(--primary); background: var(--primary-light); }
+  .upload-box.has-file { border-style: solid; border-color: var(--success); background: #F0FDF4; }
+  .upload-box .upload-icon { font-size: 48px; margin-bottom: 12px; }
+  .upload-box .upload-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .upload-box .upload-desc { font-size: 13px; color: var(--text-muted); }
+  .upload-box .upload-types { margin-top: 12px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+  .type-tag { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+  .file-list {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 10px;
+    width: 100%;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    justify-content: space-between;
+  }
+  .file-item:last-child { margin-bottom: 0; }
+  .file-name { font-size: 13px; color: var(--text); font-weight: 600; }
+  .file-size { font-size: 12px; color: var(--text-muted); }
+  .file-remove { width: 24px; height: 24px; border-radius: 6px; background: var(--bg); border: none; cursor: pointer; font-size: 14px; color: var(--danger); }
+  .file-remove:hover { background: #FEE2E2; }
+
+  .result-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 24px;
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .result-icon { font-size: 48px; margin-bottom: 12px; }
+  .result-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .result-desc { font-size: 13px; color: var(--text-muted); }
+
+  .result-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 10px;
+    width: 100%;
+  }
+
+  .size-comparison {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 16px 0;
+  }
+
+  .size-item {
+    text-align: center;
+  }
+
+  .size-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .size-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .size-arrow {
+    font-size: 24px;
+    color: var(--primary);
+  }
+
+  .option-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .option-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  .option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .option-row:last-child { border-bottom: none; }
+
+  .option-label {
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .option-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .toggle-switch {
+    width: 48px;
+    height: 26px;
+    background: var(--border);
+    border-radius: 13px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .toggle-switch.active {
+    background: var(--primary);
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left 0.2s;
+  }
+  .toggle-switch.active::after {
+    left: 25px;
+  }
+
+  .convert-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-btn {
+    padding: 12px 30px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .action-btn.secondary {
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .action-btn.secondary:hover {
+    background: var(--border);
+  }
+
+  .action-btn.primary {
+    background: linear-gradient(135deg, var(--primary), #6C8EFF);
+    color: #fff;
+  }
+
+  .action-btn.primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    box-shadow: 0 4px 14px rgba(79,110,247,0.35);
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo-area">
+    <div class="logo-title">📄 格式转换工具</div>
+    <div class="logo-sub">Format Converter Pro</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">主要功能</div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🏠</span> 工具大厅
+    </div>
+    <div class="nav-item" onclick="navigateTo('ai-chat.html')">
+      <span class="nav-icon">🤖</span> AI助手
+      <span class="nav-badge new">新</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('cockpit.html')" id="cockpitNav">
+      <span class="nav-icon">🚀</span> 驾驶舱
+      <span class="nav-badge">管</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('doc-convert.html')">
+      <span class="nav-icon">🔄</span> 标准文档转换
+    </div>
+    <div class="nav-item" onclick="navigateTo('image-recog.html')">
+      <span class="nav-icon">🖼️</span> 图片格式识别
+    </div>
+    <div class="nav-item" onclick="navigateTo('param-convert.html')">
+      <span class="nav-icon">⚙️</span> 参数格式转换
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">文件操作</div>
+    <div class="nav-item" onclick="navigateTo('word-to-pdf.html')">
+      <span class="nav-icon">📄</span> Word ↔ PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('image-to-pdf.html')">
+      <span class="nav-icon">🖼️</span> 图片 → PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('mp4-to-mp3.html')">
+      <span class="nav-icon">🎬</span> MP4 → MP3
+    </div>
+    <div class="nav-item active">
+      <span class="nav-icon">🗂️</span> PDF 合并
+    </div>
+    <div class="nav-item active">
+      <span class="nav-icon">🗂️</span> PDF 合并
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">模版与工具</div>
+    <div class="nav-item" onclick="navigateTo('templates.html')">
+      <span class="nav-icon">📁</span> 格式模版库
+    </div>
+    <div class="nav-item" onclick="navigateTo('video-compress.html')">
+      <span class="nav-icon">🎞️</span> 视频压缩
+    </div>
+    <div class="nav-item" onclick="navigateTo('add-watermark.html')">
+      <span class="nav-icon">💧</span> 添加水印
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">账户</div>
+    <div class="nav-item" onclick="navigateTo('history.html')">
+      <span class="nav-icon">🕐</span> 历史记录
+    </div>
+    <div class="nav-item" onclick="navigateTo('settings.html')">
+      <span class="nav-icon">⚙️</span> 系统设置
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="avatar">👤</div>
+    <div class="user-info">
+      <div class="user-name">管理员</div>
+      <div class="user-role">免费版 · 今日剩余 8 次</div>
+    </div>
+    <div class="notif-dot"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <span>格式转换工具</span>
+      <span>›</span>
+      <span class="current">PDF合并</span>
+    </div>
+    <div class="topbar-right">
+      <button class="tb-btn ghost">📂 打开文件</button>
+      <button class="tb-btn primary">⬆️ 上传转换</button>
+      <div class="tb-icon" title="通知">🔔</div>
+      <div class="tb-icon" title="帮助">❓</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="upload-section">
+      <div class="upload-box" id="pdfUpload" onclick="triggerUpload('pdf')">
+        <div class="upload-icon">📄</div>
+        <div class="upload-title">上传PDF文件</div>
+        <div class="upload-desc">点击或拖拽上传需要合并的PDF</div>
+        <div class="upload-types">
+          <span class="type-tag">.pdf</span>
+        </div>
+        <input type="file" id="pdfFile" accept=".pdf" multiple style="display:none" onchange="handleFileSelect(this)">
+        <div class="file-list" id="fileList" style="display:none"></div>
+      </div>
+
+      <div class="result-box" id="resultBox">
+        <div class="result-icon">📊</div>
+        <div class="result-title">合并结果预览</div>
+        <div class="result-desc">上传文件后显示合并效果</div>
+        <div class="result-info" id="resultInfo" style="display:none">
+          <div class="size-comparison">
+            <div class="size-item">
+              <div class="size-value" id="originalSize">0 KB</div>
+              <div class="size-label">原始大小</div>
+            </div>
+            <div class="size-arrow">→</div>
+            <div class="size-item">
+              <div class="size-value" id="mergedSize">0 KB</div>
+              <div class="size-label">合并后</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="option-section">
+      <div class="option-title">⚙️ 合并选项</div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">保留书签</div>
+          <div class="option-desc">保留原PDF中的书签结构</div>
+        </div>
+        <div class="toggle-switch active" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">保留注释</div>
+          <div class="option-desc">保留原PDF中的注释和批注</div>
+        </div>
+        <div class="toggle-switch active" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">压缩输出</div>
+          <div class="option-desc">减小合并后的PDF体积</div>
+        </div>
+        <div class="toggle-switch" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">添加页码</div>
+          <div class="option-desc">在合并后的PDF中添加页码</div>
+        </div>
+        <div class="toggle-switch" onclick="toggleSwitch(this)"></div>
+      </div>
+    </div>
+
+    <div class="convert-actions">
+      <button class="action-btn secondary" onclick="navigateTo('preview.html')">返回首页</button>
+      <button class="action-btn primary" onclick="startMerge()">
+        🚀 开始合并
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let files = [];
+
+function navigateTo(page) {
+  window.location.href = page;
+}
+
+function triggerUpload(type) {
+  document.getElementById(type + 'File').click();
+}
+
+function handleFileSelect(input) {
+  if (input.files.length > 0) {
+    const newFiles = Array.from(input.files);
+    files = [...files, ...newFiles];
+    
+    const uploadBox = document.getElementById('pdfUpload');
+    uploadBox.classList.add('has-file');
+    
+    const fileList = document.getElementById('fileList');
+    fileList.style.display = 'block';
+    
+    fileList.innerHTML = files.map((file, index) => `
+      <div class="file-item">
+        <div>
+          <div class="file-name">${index + 1}. ${file.name}</div>
+          <div class="file-size">${formatFileSize(file.size)}</div>
+        </div>
+        <button class="file-remove" onclick="removeFile(${index})">✕</button>
+      </div>
+    `).join('');
+    
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    document.getElementById('originalSize').textContent = formatFileSize(totalSize);
+    document.getElementById('mergedSize').textContent = formatFileSize(totalSize);
+    document.getElementById('resultInfo').style.display = 'block';
+  }
+}
+
+function removeFile(index) {
+  files.splice(index, 1);
+  handleFileSelect({ files: files });
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function toggleSwitch(el) {
+  el.classList.toggle('active');
+}
+
+function startMerge() {
+  alert('正在合并...\n\nPDF文件已成功合并！');
+}
+</script>
+</body>
+</html>
