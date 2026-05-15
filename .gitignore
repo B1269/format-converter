@@ -24,3 +24,6 @@ Thumbs.db
 
 # 测试
 coverage/
+
+# 工作记忆（不提交）
+.workbuddy/memory/
