@@ -973,11 +973,10 @@ export default {
       this.wpHasFile = true
       this.wpSelectedFile = file
       console.log('wpHasFile 设置为 true')
-      this.wpPreviewText = `文件：${file.name}\n大小：${this.wpUploadedSize}\n\n点击"原文件预览"查看详细内容`
+      this.wpPreviewText = `文件：${file.name}\n大小：${this.wpUploadedSize}\n\n正在解析文档内容...`
 
-      // 设置文档预览内容（模拟）
-      this.wpDocTitle = file.name.replace(/\.[^.]+$/, '')
-      this.wpDocSections = this.generateMockDocContent()
+      // 调用后端API解析文档内容
+      this.wpParseDocument(file)
 
       // 重置转换结果
       this.wpConvertedFile = null
@@ -987,6 +986,43 @@ export default {
 
       // 默认切换到对比预览
       this.wpActiveTab = 'compare'
+    },
+
+    async wpParseDocument(file) {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const token = localStorage.getItem('token')
+        const response = await fetch(`${this.API_BASE_URL}/api/parse/text`, {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          body: formData
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.detail || '文档解析失败')
+        }
+
+        const data = await response.json()
+        console.log('文档解析成功:', data)
+
+        // 设置文档标题和内容
+        this.wpDocTitle = data.title || file.name.replace(/\.[^.]+$/, '')
+        this.wpDocSections = data.sections || []
+
+        // 更新预览文本
+        this.wpPreviewText = `文件：${file.name}\n大小：${this.wpUploadedSize}\n\n文档已解析，共 ${this.wpDocSections.length} 个章节`
+
+      } catch (error) {
+        console.error('文档解析失败:', error)
+        alert(`文档解析失败: ${error.message}\n\n将使用模拟数据进行预览。`)
+        // 降级：使用模拟数据
+        this.wpDocTitle = file.name.replace(/\.[^.]+$/, '')
+        this.wpDocSections = this.generateMockDocContent()
+        this.wpPreviewText = `文件：${file.name}\n大小：${this.wpUploadedSize}\n\n(模拟数据) 点击"原文件预览"查看详细内容`
+      }
     },
 
     generateMockDocContent() {

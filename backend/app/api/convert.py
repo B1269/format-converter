@@ -138,6 +138,47 @@ async def convert_pdf_to_word(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/parse/text")
+async def parse_document_text(file: UploadFile = File(...)):
+    """解析文档文本内容，支持 .docx、.doc、.pdf"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # 验证文件类型
+    ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
+    if ext not in ['docx', 'doc', 'pdf']:
+        raise HTTPException(
+            status_code=400,
+            detail="仅支持 .docx、.doc、.pdf 格式的文件"
+        )
+
+    try:
+        logger.info(f"收到文档解析请求: {file.filename}")
+
+        # 保存上传文件
+        input_path = await conversion_service.save_upload_file(file)
+        logger.info(f"文件已保存: {input_path}")
+
+        # 解析文档内容
+        result = conversion_service.parse_document_text(input_path)
+        logger.info(f"文档解析成功，标题: {result['title']}")
+
+        # 清理临时文件
+        try:
+            import os
+            os.remove(input_path)
+        except:
+            pass
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"文档解析失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/supported-conversions")
 async def get_supported_conversions():
     """获取支持的转换类型"""

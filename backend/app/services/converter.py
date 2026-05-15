@@ -243,6 +243,182 @@ class ConversionService:
         return str(output_file)
 
     @staticmethod
+    def parse_document_text(input_path: str) -> dict:
+        """
+        解析文档文本内容
+        支持 .docx, .doc, .pdf 三种格式
+        返回：{ title: str, sections: list, full_text: str }
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        input_file = Path(input_path)
+        ext = input_file.suffix.lower()
+        logger.info(f"解析文档内容，文件: {input_file.name}, 扩展名: {ext}")
+
+        if ext == '.docx':
+            return ConversionService._parse_docx(input_path)
+        elif ext == '.doc':
+            return ConversionService._parse_doc(input_path)
+        elif ext == '.pdf':
+            return ConversionService._parse_pdf(input_path)
+        else:
+            raise ValueError(f"不支持的文件格式: {ext}，仅支持.docx、.doc、.pdf")
+
+    @staticmethod
+    def _parse_docx(input_path: str) -> dict:
+        """解析 .docx 文件"""
+        from docx import Document
+
+        doc = Document(input_path)
+        sections = []
+        current_section = {"title": "正文", "paragraphs": []}
+
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            if not text:
+                continue
+
+            # 根据样式判断是否为标题
+            style_name = para.style.name if para.style else ""
+            if style_name.startswith('Heading') or '标题' in style_name:
+                # 保存当前section，开始新section
+                if current_section["paragraphs"]:
+                    sections.append(current_section)
+                current_section = {"title": text, "paragraphs": []}
+            else:
+                current_section["paragraphs"].append(text)
+
+        # 保存最后一个section
+        if current_section["paragraphs"]:
+            sections.append(current_section)
+
+        # 如果没有内容，创建一个默认section
+        if not sections:
+            sections.append({"title": "正文", "paragraphs": []})
+
+        # 提取文档标题（第一个标题或文件名）
+        title = sections[0]["title"] if sections else Path(input_path).stem
+
+        return {
+            "title": title,
+            "sections": sections,
+            "file_type": "docx"
+        }
+
+    @staticmethod
+    def _parse_doc(input_path: str) -> dict:
+        """解析 .doc 文件（使用LibreOffice转换为临时docx再解析）"""
+        import subprocess
+        import shutil
+        import platform
+        import tempfile
+
+        logger = logging.getLogger(__name__)
+
+        # 创建临时目录
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            input_file = Path(input_path)
+
+            # 使用LibreOffice转换为docx
+            soffice = None
+            system = platform.system()
+
+            if system == "Windows":
+                libreoffice_paths = [
+                    r"C:\Program Files\LibreOffice\program\soffice.exe",
+                    r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+                ]
+                for path in libreoffice_paths:
+                    if Path(path).exists():
+                        soffice = path
+                        break
+                if not soffice:
+                    soffice = shutil.which("soffice")
+            elif system == "Linux":
+                soffice = shutil.which("soffice")
+
+            if not soffice:
+                logger.warning("LibreOffice未安装，尝试直接读取.doc文件")
+                # 尝试直接读取（可能失败）
+                try:
+                    from docx import Document
+                    doc = Document(input_path)
+                    paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+                    return {
+                        "title": Path(input_path).stem,
+                        "sections": [{"title": "正文", "paragraphs": paragraphs}],
+                        "file_type": "doc"
+                    }
+                except:
+                    raise RuntimeError("无法解析.doc文件，请安装LibreOffice")
+
+            # 执行转换
+            cmd = [
+                soffice,
+                "--headless",
+                "--convert-to", "docx",
+                "--outdir", str(temp_path),
+                str(input_file)
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            if result.returncode != 0:
+                raise RuntimeError(f"LibreOffice转换失败: {result.stderr}")
+
+            # 找到转换后的docx文件
+            docx_files = list(temp_path.glob("*.docx"))
+            if not docx_files:
+                raise RuntimeError("LibreOffice转换未生成docx文件")
+
+            # 解析docx
+            return ConversionService._parse_docx(str(docx_files[0]))
+
+    @staticmethod
+    def _parse_pdf(input_path: str) -> dict:
+        """解析 .pdf 文件"""
+        from PyPDF2 import PdfReader
+
+        reader = PdfReader(input_path)
+        sections = []
+        current_section = {"title": "正文", "paragraphs": []}
+
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text()
+            if not text:
+                continue
+
+            # 按行分割，清理空白
+            lines = [line.strip() for line in text.split('\n') if line.strip()]
+
+            for line in lines:
+                # 检测是否为页码或短行（可能是标题）
+                if len(line) < 50 and i == 0:
+                    # 可能是标题
+                    if current_section["paragraphs"]:
+                        sections.append(current_section)
+                    current_section = {"title": line, "paragraphs": []}
+                else:
+                    current_section["paragraphs"].append(line)
+
+        # 保存最后一个section
+        if current_section["paragraphs"]:
+            sections.append(current_section)
+
+        # 如果没有内容，创建一个默认section
+        if not sections:
+            sections.append({"title": "正文", "paragraphs": []})
+
+        title = sections[0]["title"] if sections else Path(input_path).stem
+
+        return {
+            "title": title,
+            "sections": sections,
+            "file_type": "pdf"
+        }
+
+    @staticmethod
     def pdf_to_word(input_path: str) -> str:
         """
         PDF转Word
