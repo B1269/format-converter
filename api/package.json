@@ -1,0 +1,15 @@
+{
+  "name": "template-api",
+  "version": "1.0.0",
+  "description": "模板自动更新接口服务",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-schedule": "^2.1.1",
+    "axios": "^1.6.0"
+  }
+}
