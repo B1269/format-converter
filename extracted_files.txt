@@ -1,0 +1,1032 @@
+﻿=== .gitignore ===
+# Dependencies
+node_modules/
+.vite/
+
+# Build output
+dist/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+
+
+=== backend/.gitignore ===
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+pip-log.txt
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Output files
+outputs/
+uploads/
+*.db
+
+# Environment
+.env
+.env.local
+
+
+
+=== backend/app/__init__.py ===
+# App package
+
+
+
+=== backend/app/api/auth.py ===
+"""
+用户认证API - 同步版本
+"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+
+from app.core.database import User, SessionLocal
+
+router = APIRouter()
+
+# OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+
+
+# Pydantic 模型
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+# 数据库会话依赖
+def get_db():
+    """获取数据库会话"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@router.post("/register", response_model=UserResponse)
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    """用户注册"""
+    # 检查用户名是否存在
+    existing_user = db.query(User).filter(User.username == user.username).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="用户名已被注册"
+        )
+
+    # 检查邮箱是否存在
+    existing_email = db.query(User).filter(User.email == user.email).first()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="邮箱已被注册"
+        )
+
+    # 创建新用户
+    from app.core.security import get_password_hash
+    hashed_password = get_password_hash(user.password)
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password,
+        is_active=True
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+
+
+@router.post("/login", response_model=Token)
+def login(login_data: LoginRequest, db: Session = Depends(get_db)):
+    """用户登录"""
+    from app.core.security import verify_password, create_access_token
+
+    # 查找用户
+    user = db.query(User).filter(User.username == login_data.username).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误"
+        )
+
+    # 验证密码
+    if not verify_password(login_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误"
+        )
+
+    # 检查用户是否激活
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="账号已被禁用"
+        )
+
+    # 创建访问令牌
+    access_token = create_access_token(
+        data={"sub": user.username, "user_id": user.id}
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_info(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """获取当前用户信息"""
+    from app.core.security import decode_token
+
+    payload = decode_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的认证信息"
+        )
+
+    username = payload.get("sub")
+    if username is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的认证信息"
+        )
+
+    user = db.query(User).filter(User.username == username).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户不存在"
+        )
+
+    return user
+
+
+@router.post("/init-db")
+def init_database():
+    """初始化数据库（创建表）"""
+    from app.core.database import Base, engine
+    Base.metadata.create_all(bind=engine)
+    return {"message": "数据库初始化完成"}
+
+
+
+=== backend/app/api/convert.py ===
+"""
+文件转换API
+"""
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
+from typing import List
+import os
+
+from app.services.converter import conversion_service
+from app.core.config import MAX_FILE_SIZE, SUPPORTED_CONVERSIONS
+
+router = APIRouter()
+
+
+@router.post("/convert/word-to-pdf")
+async def convert_word_to_pdf(file: UploadFile = File(...)):
+    """Word转PDF"""
+    # 验证文件类型
+    if not file.filename.endswith(('.docx', '.doc')):
+        raise HTTPException(status_code=400, detail="仅支持.docx或.doc文件")
+
+    try:
+        # 保存上传文件
+        input_path = await conversion_service.save_upload_file(file)
+
+        # 转换
+        output_path = conversion_service.word_to_pdf(input_path)
+
+        # 返回文件
+        return FileResponse(
+            path=output_path,
+            filename=os.path.basename(output_path),
+            media_type='application/pdf'
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/convert/image-to-pdf")
+async def convert_image_to_pdf(files: List[UploadFile] = File(...)):
+    """多张图片转PDF"""
+    if len(files) < 1:
+        raise HTTPException(status_code=400, detail="请至少上传一张图片")
+
+    try:
+        # 保存上传文件
+        image_paths = []
+        for file in files:
+            if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.gif')):
+                raise HTTPException(status_code=400, detail=f"不支持的文件类型: {file.filename}")
+            path = await conversion_service.save_upload_file(file)
+            image_paths.append(path)
+
+        # 转换
+        output_path = conversion_service.image_to_pdf(image_paths)
+
+        return FileResponse(
+            path=output_path,
+            filename=os.path.basename(output_path),
+            media_type='application/pdf'
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/convert/pdf-merge")
+async def merge_pdf(files: List[UploadFile] = File(...)):
+    """合并PDF"""
+    if len(files) < 2:
+        raise HTTPException(status_code=400, detail="请至少上传两个PDF文件")
+
+    try:
+        # 保存上传文件
+        pdf_paths = []
+        for file in files:
+            if not file.filename.lower().endswith('.pdf'):
+                raise HTTPException(status_code=400, detail=f"仅支持PDF文件: {file.filename}")
+            path = await conversion_service.save_upload_file(file)
+            pdf_paths.append(path)
+
+        # 合并
+        output_path = conversion_service.pdf_merge(pdf_paths)
+
+        return FileResponse(
+            path=output_path,
+            filename=os.path.basename(output_path),
+            media_type='application/pdf'
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/supported-conversions")
+async def get_supported_conversions():
+    """获取支持的转换类型"""
+    return SUPPORTED_CONVERSIONS
+
+
+
+=== backend/app/api/health.py ===
+"""
+健康检查API
+"""
+from fastapi import APIRouter
+
+router = APIRouter()
+
+
+@router.get("/health")
+async def health_check():
+    """健康检查"""
+    return {
+        "status": "healthy",
+        "service": "format-converter-api",
+        "version": "1.0.0"
+    }
+
+
+
+=== backend/app/core/config.py ===
+"""
+应用配置
+"""
+import os
+from pathlib import Path
+
+# 项目根目录
+BASE_DIR = Path(__file__).parent.parent.parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+OUTPUT_DIR = BASE_DIR / "outputs"
+
+# 确保目录存在
+UPLOAD_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+# 文件大小限制 (50MB)
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
+# 支持的文件类型
+SUPPORTED_CONVERSIONS = {
+    "word_to_pdf": {
+        "input": [".docx", ".doc"],
+        "output": ".pdf",
+        "description": "Word转PDF"
+    },
+    "excel_to_pdf": {
+        "input": [".xlsx", ".xls"],
+        "output": ".pdf",
+        "description": "Excel转PDF"
+    },
+    "ppt_to_pdf": {
+        "input": [".pptx", ".ppt"],
+        "output": ".pdf",
+        "description": "PPT转PDF"
+    },
+    "image_to_pdf": {
+        "input": [".jpg", ".jpeg", ".png", ".bmp", ".gif"],
+        "output": ".pdf",
+        "description": "图片转PDF"
+    },
+    "pdf_merge": {
+        "input": [".pdf"],
+        "output": ".pdf",
+        "description": "PDF合并"
+    }
+}
+
+# 数据库配置
+DATABASE_URL = "sqlite+aiosqlite:///./format_converter.db"
+
+# JWT密钥（生产环境请更换为更复杂的密钥）
+SECRET_KEY = "format-converter-secret-key-change-in-production-2026"
+
+
+
+=== backend/app/core/database.py ===
+"""
+数据库模型 - 同步版本
+"""
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, create_engine, func
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from app.core.config import DATABASE_URL
+
+Base = declarative_base()
+
+# 同步引擎
+engine = create_engine(DATABASE_URL.replace("+aiosqlite", ""), connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine)
+
+
+class User(Base):
+    """用户表"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<User {self.username}>"
+
+
+class ConversionRecord(Base):
+    """转换记录表"""
+    __tablename__ = "conversion_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True)
+    file_name = Column(String(255), nullable=False)
+    file_type = Column(String(50), nullable=False)
+    input_format = Column(String(20))
+    output_format = Column(String(20))
+    input_size = Column(Integer)
+    output_size = Column(Integer)
+    status = Column(String(20), default="pending")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<ConversionRecord {self.file_name}>"
+
+
+
+=== backend/app/core/security.py ===
+"""
+认证服务
+"""
+from datetime import datetime, timedelta
+from typing import Optional
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.core.config import SECRET_KEY
+from app.core.database import User
+
+# 密码加密
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT设置
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7天
+
+# Bearer Token
+security = HTTPBearer()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """验证密码"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    """生成密码哈希"""
+    return pwd_context.hash(password)
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """创建JWT Token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+def decode_token(token: str) -> Optional[dict]:
+    """解码Token"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = None
+) -> User:
+    """获取当前登录用户"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="认证失败，请重新登录",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    token = credentials.credentials
+    payload = decode_token(token)
+
+    if payload is None:
+        raise credentials_exception
+
+    username: str = payload.get("sub")
+    if username is None:
+        raise credentials_exception
+
+    # 这里简化处理，实际应该查数据库
+    # 后续完善
+    return User(username=username)
+
+
+
+=== backend/app/services/converter.py ===
+"""
+文件转换服务
+"""
+import os
+import uuid
+from pathlib import Path
+from typing import Optional
+from fastapi import UploadFile
+
+from app.core.config import UPLOAD_DIR, OUTPUT_DIR, SUPPORTED_CONVERSIONS
+
+
+class ConversionService:
+    """转换服务"""
+
+    @staticmethod
+    async def save_upload_file(upload_file: UploadFile) -> str:
+        """保存上传文件，返回文件路径"""
+        # 生成唯一文件名
+        ext = Path(upload_file.filename).suffix
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        file_path = UPLOAD_DIR / unique_name
+
+        # 写入文件
+        content = await upload_file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        return str(file_path)
+
+    @staticmethod
+    def word_to_pdf(input_path: str) -> str:
+        """
+        Word转PDF
+        使用python-docx处理.docx文件
+        对于.doc文件需要LibreOffice支持
+        """
+        from docx import Document
+
+        input_file = Path(input_path)
+        output_file = OUTPUT_DIR / f"{input_file.stem}.pdf"
+
+        # 读取Word文档
+        doc = Document(input_path)
+
+        # 转换为PDF（简化实现，实际需要用LibreOffice或专门的库）
+        # 这里我们创建一个简单的处理流程
+        try:
+            # 使用reportlab创建PDF
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.units import cm
+
+            doc_pdf = SimpleDocTemplate(
+                str(output_file),
+                pagesize=A4,
+                rightMargin=2*cm,
+                leftMargin=2*cm,
+                topMargin=2*cm,
+                bottomMargin=2*cm
+            )
+
+            styles = getSampleStyleSheet()
+            story = []
+
+            # 转换段落
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    story.append(Paragraph(para.text, styles['Normal']))
+                    story.append(Spacer(1, 12))
+
+            # 转换表格
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = " | ".join([cell.text for cell in row.cells])
+                    story.append(Paragraph(row_text, styles['Normal']))
+                story.append(Spacer(1, 12))
+
+            doc_pdf.build(story)
+            return str(output_file)
+
+        except ImportError:
+            # 如果reportlab未安装，使用备用方法
+            return ConversionService._word_to_pdf_fallback(input_path)
+
+    @staticmethod
+    def _word_to_pdf_fallback(input_path: str) -> str:
+        """Word转PDF的备用方法（需要LibreOffice）"""
+        import subprocess
+        import platform
+
+        input_file = Path(input_path)
+        output_file = OUTPUT_DIR / f"{input_file.stem}.pdf"
+
+        system = platform.system()
+
+        if system == "Windows":
+            # Windows: 使用LibreOffice
+            libreoffice_paths = [
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
+            ]
+            soffice = None
+            for path in libreoffice_paths:
+                if Path(path).exists():
+                    soffice = path
+                    break
+
+            if soffice:
+                cmd = [
+                    soffice,
+                    "--headless",
+                    "--convert-to", "pdf",
+                    "--outdir", str(OUTPUT_DIR),
+                    str(input_file)
+                ]
+                subprocess.run(cmd, check=True, capture_output=True)
+                return str(output_file)
+
+        elif system == "Linux":
+            # Linux: 使用soffice
+            subprocess.run(
+                ["soffice", "--headless", "--convert-to", "pdf",
+                 "--outdir", str(OUTPUT_DIR), str(input_file)],
+                check=True, capture_output=True
+            )
+            return str(output_file)
+
+        raise RuntimeError("需要安装LibreOffice才能转换.doc文件")
+
+    @staticmethod
+    def image_to_pdf(image_paths: list, output_name: Optional[str] = None) -> str:
+        """多张图片转PDF"""
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.utils import ImageReader
+        from reportlab.platypus import SimpleDocTemplate, Image as RLImage, Spacer
+        from reportlab.lib.units import cm
+
+        if not output_name:
+            output_name = f"{uuid.uuid4().hex}.pdf"
+        output_file = OUTPUT_DIR / output_name
+
+        # 创建PDF
+        doc = SimpleDocTemplate(
+            str(output_file),
+            pagesize=A4,
+            rightMargin=1*cm,
+            leftMargin=1*cm,
+            topMargin=1*cm,
+            bottomMargin=1*cm
+        )
+
+        story = []
+        page_width, page_height = A4
+
+        for img_path in image_paths:
+            img = ImageReader(img_path)
+
+            # 计算图片缩放比例以适应页面
+            img_width = img.getWidth()
+            img_height = img.getHeight()
+
+            max_width = page_width - 2*cm
+            max_height = page_height - 2*cm
+
+            ratio = min(max_width/img_width, max_height/img_height)
+            new_width = img_width * ratio
+            new_height = img_height * ratio
+
+            story.append(RLImage(img_path, width=new_width, height=new_height))
+            story.append(Spacer(1, 0.5*cm))
+
+        doc.build(story)
+        return str(output_file)
+
+    @staticmethod
+    def pdf_merge(pdf_paths: list, output_name: Optional[str] = None) -> str:
+        """合并多个PDF"""
+        from PyPDF2 import PdfMerger
+
+        if not output_name:
+            output_name = f"{uuid.uuid4().hex}.pdf"
+        output_file = OUTPUT_DIR / output_name
+
+        merger = PdfMerger()
+        for pdf_path in pdf_paths:
+            merger.append(pdf_path)
+
+        with open(output_file, 'wb') as f:
+            merger.write(f)
+
+        return str(output_file)
+
+
+# 全局服务实例
+conversion_service = ConversionService()
+
+
+
+=== backend/init_db.py ===
+"""
+初始化数据库
+"""
+from app.core.database import Base, engine
+
+def init_db():
+    """初始化数据库表"""
+    # 使用同步方式创建表
+    Base.metadata.create_all(bind=engine)
+    print("数据库表创建完成！")
+
+if __name__ == "__main__":
+    init_db()
+
+
+
+=== backend/main.py ===
+"""
+格式转换工具 - FastAPI后端
+"""
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.api import convert, health, auth
+
+app = FastAPI(
+    title="格式转换工具 API",
+    description="支持文档格式转换、图片处理、视频压缩等功能",
+    version="1.0.0"
+)
+
+# CORS配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 生产环境应该限制具体域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 注册路由
+app.include_router(health.router, prefix="/api", tags=["健康检查"])
+app.include_router(convert.router, prefix="/api", tags=["文件转换"])
+app.include_router(auth.router, prefix="/api/auth", tags=["用户认证"])
+
+@app.get("/")
+async def root():
+    return {"message": "格式转换工具 API", "version": "1.0.0"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+=== backend/requirements.txt ===
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+python-docx==1.1.0
+aiofiles==23.2.1
+pydantic==2.5.3
+pydantic-settings==2.1.0
+sqlalchemy==2.0.25
+aiosqlite==0.19.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+reportlab==4.0.8
+PyPDF2==3.0.1
+
+
+
+=== frontend/src/services/api.ts ===
+/**
+ * API 服务 - 对接后端
+ */
+
+const API_BASE_URL = 'http://localhost:8000/api'
+
+interface ApiResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: string
+}
+
+/**
+ * 健康检查
+ */
+export async function healthCheck(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`)
+    const data = await response.json()
+    return data.status === 'healthy'
+  } catch (error) {
+    console.error('Health check failed:', error)
+    return false
+  }
+}
+
+/**
+ * 获取支持的转换类型
+ */
+export async function getSupportedConversions() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/supported-conversions`)
+    return await response.json()
+  } catch (error) {
+    console.error('Get conversions failed:', error)
+    return null
+  }
+}
+
+/**
+ * Word转PDF
+ */
+export async function convertWordToPdf(file: File): Promise<{ success: boolean; file?: File; error?: string }> {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch(`${API_BASE_URL}/convert/word-to-pdf`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, error: error.detail || '转换失败' }
+    }
+
+    // 获取文件名
+    const contentDisposition = response.headers.get('content-disposition')
+    let filename = 'converted.pdf'
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (match) {
+        filename = match[1].replace(/['"]/g, '')
+      }
+    }
+
+    const blob = await response.blob()
+    const convertedFile = new File([blob], filename, { type: 'application/pdf' })
+
+    return { success: true, file: convertedFile }
+  } catch (error) {
+    console.error('Word to PDF conversion failed:', error)
+    return { success: false, error: '转换服务不可用，请检查后端是否启动' }
+  }
+}
+
+/**
+ * 图片转PDF
+ */
+export async function convertImagesToPdf(files: File[]): Promise<{ success: boolean; file?: File; error?: string }> {
+  try {
+    const formData = new FormData()
+    files.forEach((file, index) => {
+      formData.append('files', file)
+    })
+
+    const response = await fetch(`${API_BASE_URL}/convert/image-to-pdf`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, error: error.detail || '转换失败' }
+    }
+
+    const blob = await response.blob()
+    const convertedFile = new File([blob], 'converted.pdf', { type: 'application/pdf' })
+
+    return { success: true, file: convertedFile }
+  } catch (error) {
+    console.error('Image to PDF conversion failed:', error)
+    return { success: false, error: '转换服务不可用，请检查后端是否启动' }
+  }
+}
+
+/**
+ * PDF合并
+ */
+export async function mergePdfs(files: File[]): Promise<{ success: boolean; file?: File; error?: string }> {
+  try {
+    const formData = new FormData()
+    files.forEach((file, index) => {
+      formData.append('files', file)
+    })
+
+    const response = await fetch(`${API_BASE_URL}/convert/pdf-merge`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      return { success: false, error: error.detail || '合并失败' }
+    }
+
+    const blob = await response.blob()
+    const mergedFile = new File([blob], 'merged.pdf', { type: 'application/pdf' })
+
+    return { success: true, file: mergedFile }
+  } catch (error) {
+    console.error('PDF merge failed:', error)
+    return { success: false, error: '合并服务不可用，请检查后端是否启动' }
+  }
+}
+
+/**
+ * 下载文件
+ */
+export function downloadFile(file: File) {
+  const url = URL.createObjectURL(file)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = file.name
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+
+
+=== README.md ===
+# 格式转换工具 (Format Converter Pro)
+
+一款功能全面的在线格式转换工具，支持文档、图片、视频等多种格式转换。
+
+## 功能特性
+
+- 📄 **标准文档转换** - Word/PDF 互转
+- 🖼️ **图片格式识别** - 智能识别图片内容
+- ⚙️ **参数格式转换** - 批量参数格式调整
+- 📝 **Word ↔ PDF** - 文档格式互转
+- 🖼️ **图片 → PDF** - 图片批量转 PDF
+- 🎬 **MP4 → MP3** - 视频音频提取
+- 🗂️ **PDF 合并** - 多文档合并
+- 📁 **格式模板库** - 丰富的文档模板
+- 🎞️ **视频压缩** - 高效视频压缩
+- 💧 **添加水印** - 图片/文档批量水印
+
+## 技术栈
+
+- 前端: HTML5 + CSS3 + JavaScript
+- 后端: Python (开发中)
+- 部署: 腾讯云
+
+## 快速开始
+
+```bash
+# 安装依赖
+npm install
+
+# 开发模式
+npm run dev
+
+# 构建
+npm run build
+```
+
+## 开发计划
+
+- [x] 前端界面原型
+- [ ] 后端 API 开发
+- [ ] 用户登录系统
+- [ ] 核心转换功能
+- [ ] 微信小程序版本
+
+## 许可证
+
+MIT License
+
+

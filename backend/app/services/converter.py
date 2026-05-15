@@ -1,0 +1,280 @@
+"""
+文件转换服务
+"""
+import os
+import uuid
+from pathlib import Path
+from typing import Optional
+from fastapi import UploadFile
+
+from app.core.config import UPLOAD_DIR, OUTPUT_DIR, SUPPORTED_CONVERSIONS
+
+
+class ConversionService:
+    """转换服务"""
+
+    @staticmethod
+    async def save_upload_file(upload_file: UploadFile) -> str:
+        """保存上传文件，返回文件路径"""
+        # 生成唯一文件名
+        ext = Path(upload_file.filename).suffix
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        file_path = UPLOAD_DIR / unique_name
+
+        # 写入文件
+        content = await upload_file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        return str(file_path)
+
+    @staticmethod
+    def word_to_pdf(input_path: str) -> str:
+        """
+        Word转PDF
+        根据文件类型选择转换策略：
+        - .docx: 使用python-docx + reportlab
+        - .doc: 使用LibreOffice（更可靠）
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        input_file = Path(input_path)
+        ext = input_file.suffix.lower()
+
+        logger.info(f"开始Word转PDF，文件: {input_file.name}, 扩展名: {ext}")
+
+        # .doc 文件直接用LibreOffice转换（python-docx不支持.doc）
+        if ext == '.doc':
+            logger.info("检测到.doc文件，使用LibreOffice转换")
+            return ConversionService._word_to_pdf_fallback(input_path)
+
+        # .docx 文件使用python-docx + reportlab
+        if ext == '.docx':
+            logger.info("检测到.docx文件，使用python-docx + reportlab转换")
+            try:
+                from docx import Document
+                from reportlab.lib.pagesizes import A4
+                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+                from reportlab.lib.units import cm
+
+                # 读取Word文档
+                doc = Document(input_path)
+
+                output_file = OUTPUT_DIR / f"{input_file.stem}.pdf"
+
+                doc_pdf = SimpleDocTemplate(
+                    str(output_file),
+                    pagesize=A4,
+                    rightMargin=2*cm,
+                    leftMargin=2*cm,
+                    topMargin=2*cm,
+                    bottomMargin=2*cm
+                )
+
+                styles = getSampleStyleSheet()
+                story = []
+
+                # 转换段落
+                for para in doc.paragraphs:
+                    if para.text.strip():
+                        story.append(Paragraph(para.text, styles['Normal']))
+                        story.append(Spacer(1, 12))
+
+                # 转换表格
+                for table in doc.tables:
+                    for row in table.rows:
+                        row_text = " | ".join([cell.text for cell in row.cells])
+                        story.append(Paragraph(row_text, styles['Normal']))
+                    story.append(Spacer(1, 12))
+
+                doc_pdf.build(story)
+                logger.info(f"转换成功: {output_file}")
+                return str(output_file)
+
+            except ImportError as e:
+                logger.warning(f"reportlab未安装: {e}，尝试使用LibreOffice")
+                return ConversionService._word_to_pdf_fallback(input_path)
+            except Exception as e:
+                logger.error(f"python-docx转换失败: {e}，尝试使用LibreOffice")
+                return ConversionService._word_to_pdf_fallback(input_path)
+
+        raise ValueError(f"不支持的文件格式: {ext}，仅支持.doc和.docx")
+
+    @staticmethod
+    def _word_to_pdf_fallback(input_path: str) -> str:
+        """Word转PDF的备用方法（需要LibreOffice）"""
+        import subprocess
+        import platform
+        import logging
+        import shutil
+
+        logger = logging.getLogger(__name__)
+
+        input_file = Path(input_path)
+        output_file = OUTPUT_DIR / f"{input_file.stem}.pdf"
+
+        system = platform.system()
+        logger.info(f"LibreOffice转换: {input_file.name}, 系统: {system}")
+
+        soffice = None
+
+        if system == "Windows":
+            # Windows: 搜索LibreOffice
+            libreoffice_paths = [
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+                r"D:\LibreOffice\program\soffice.exe",
+            ]
+            for path in libreoffice_paths:
+                if Path(path).exists():
+                    soffice = path
+                    break
+
+            # 如果找不到，尝试从环境变量PATH中查找
+            if not soffice:
+                soffice_cmd = shutil.which("soffice")
+                if soffice_cmd:
+                    soffice = soffice_cmd
+
+        elif system == "Linux":
+            soffice = shutil.which("soffice")
+
+        if not soffice:
+            logger.error("未找到LibreOffice，请安装LibreOffice")
+            raise RuntimeError(
+                "需要安装LibreOffice才能转换此文件。\n"
+                "Windows下载: https://www.libreoffice.org/download/download/\n"
+                "安装后重启后端服务即可。"
+            )
+
+        logger.info(f"使用LibreOffice: {soffice}")
+
+        try:
+            cmd = [
+                soffice,
+                "--headless",
+                "--convert-to", "pdf",
+                "--outdir", str(OUTPUT_DIR),
+                str(input_file)
+            ]
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=120  # 2分钟超时
+            )
+            logger.info(f"LibreOffice转换成功: {output_file}")
+            return str(output_file)
+
+        except subprocess.TimeoutExpired:
+            logger.error("LibreOffice转换超时（超过2分钟）")
+            raise RuntimeError("转换超时，文件可能过大或格式复杂")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"LibreOffice转换失败: {e.stderr}")
+            raise RuntimeError(f"LibreOffice转换失败: {e.stderr or '未知错误'}")
+        except Exception as e:
+            logger.error(f"LibreOffice转换异常: {e}")
+            raise RuntimeError(f"转换失败: {str(e)}")
+
+    @staticmethod
+    def image_to_pdf(image_paths: list, output_name: Optional[str] = None) -> str:
+        """多张图片转PDF"""
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.utils import ImageReader
+        from reportlab.platypus import SimpleDocTemplate, Image as RLImage, Spacer
+        from reportlab.lib.units import cm
+
+        if not output_name:
+            output_name = f"{uuid.uuid4().hex}.pdf"
+        output_file = OUTPUT_DIR / output_name
+
+        # 创建PDF
+        doc = SimpleDocTemplate(
+            str(output_file),
+            pagesize=A4,
+            rightMargin=1*cm,
+            leftMargin=1*cm,
+            topMargin=1*cm,
+            bottomMargin=1*cm
+        )
+
+        story = []
+        page_width, page_height = A4
+
+        for img_path in image_paths:
+            img = ImageReader(img_path)
+
+            # 计算图片缩放比例以适应页面
+            img_width = img.getWidth()
+            img_height = img.getHeight()
+
+            max_width = page_width - 2*cm
+            max_height = page_height - 2*cm
+
+            ratio = min(max_width/img_width, max_height/img_height)
+            new_width = img_width * ratio
+            new_height = img_height * ratio
+
+            story.append(RLImage(img_path, width=new_width, height=new_height))
+            story.append(Spacer(1, 0.5*cm))
+
+        doc.build(story)
+        return str(output_file)
+
+    @staticmethod
+    def pdf_merge(pdf_paths: list, output_name: Optional[str] = None) -> str:
+        """合并多个PDF"""
+        from PyPDF2 import PdfMerger
+
+        if not output_name:
+            output_name = f"{uuid.uuid4().hex}.pdf"
+        output_file = OUTPUT_DIR / output_name
+
+        merger = PdfMerger()
+        for pdf_path in pdf_paths:
+            merger.append(pdf_path)
+
+        with open(output_file, 'wb') as f:
+            merger.write(f)
+
+        return str(output_file)
+
+    @staticmethod
+    def pdf_to_word(input_path: str) -> str:
+        """
+        PDF转Word
+        简化实现：提取PDF文本并创建Word文档
+        复杂PDF（如扫描件、图文混排）需要使用pdf2docx等专门库
+        """
+        from docx import Document
+        from PyPDF2 import PdfReader
+
+        input_file = Path(input_path)
+        output_file = OUTPUT_DIR / f"{input_file.stem}.docx"
+
+        # 读取PDF
+        reader = PdfReader(input_path)
+
+        # 创建Word文档
+        doc = Document()
+        doc.add_heading(input_file.stem, 0)
+
+        # 提取每页文本
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text()
+            if text.strip():
+                # 添加页面标题
+                doc.add_heading(f'第 {i+1} 页', level=2)
+                # 添加文本内容
+                doc.add_paragraph(text)
+
+        # 保存
+        doc.save(str(output_file))
+        return str(output_file)
+
+
+# 全局服务实例
+conversion_service = ConversionService()
