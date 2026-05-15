@@ -377,9 +377,67 @@ class ConversionService:
 
     @staticmethod
     def _parse_pdf(input_path: str) -> dict:
-        """解析 .pdf 文件"""
-        from PyPDF2 import PdfReader
+        """解析 .pdf 文件 - 使用 pdfplumber 获得更好的中文支持"""
+        import logging
+        logger = logging.getLogger(__name__)
 
+        try:
+            # 优先使用 pdfplumber（中文支持更好）
+            import pdfplumber
+
+            logger.info(f"使用 pdfplumber 解析 PDF: {input_path}")
+            sections = []
+            current_section = {"title": "正文", "paragraphs": []}
+
+            with pdfplumber.open(input_path) as pdf:
+                for i, page in enumerate(pdf.pages):
+                    text = page.extract_text()
+                    if not text:
+                        continue
+
+                    # 按行分割，清理空白
+                    lines = [line.strip() for line in text.split('\n') if line.strip()]
+
+                    for line in lines:
+                        # 检测是否为页码或短行（可能是标题）
+                        if len(line) < 50 and i == 0 and not current_section["paragraphs"]:
+                            # 第一页的短行作为标题
+                            current_section["title"] = line
+                        else:
+                            current_section["paragraphs"].append(line)
+
+                # 保存最后一个section
+                if current_section["paragraphs"]:
+                    sections.append(current_section)
+
+            # 如果没有内容，回退到 PyPDF2
+            if not sections or not sections[0]["paragraphs"]:
+                logger.warning("pdfplumber 未提取到内容，尝试 PyPDF2")
+                return ConversionService._parse_pdf_pypdf2(input_path)
+
+            title = sections[0]["title"] if sections else Path(input_path).stem
+
+            return {
+                "title": title,
+                "sections": sections,
+                "file_type": "pdf"
+            }
+
+        except ImportError:
+            logger.warning("pdfplumber 未安装，使用 PyPDF2")
+            return ConversionService._parse_pdf_pypdf2(input_path)
+        except Exception as e:
+            logger.error(f"pdfplumber 解析失败: {e}，尝试 PyPDF2")
+            return ConversionService._parse_pdf_pypdf2(input_path)
+
+    @staticmethod
+    def _parse_pdf_pypdf2(input_path: str) -> dict:
+        """使用 PyPDF2 解析 PDF（备用方案）"""
+        from PyPDF2 import PdfReader
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"使用 PyPDF2 解析 PDF: {input_path}")
         reader = PdfReader(input_path)
         sections = []
         current_section = {"title": "正文", "paragraphs": []}
@@ -394,11 +452,8 @@ class ConversionService:
 
             for line in lines:
                 # 检测是否为页码或短行（可能是标题）
-                if len(line) < 50 and i == 0:
-                    # 可能是标题
-                    if current_section["paragraphs"]:
-                        sections.append(current_section)
-                    current_section = {"title": line, "paragraphs": []}
+                if len(line) < 50 and i == 0 and not current_section["paragraphs"]:
+                    current_section["title"] = line
                 else:
                     current_section["paragraphs"].append(line)
 
