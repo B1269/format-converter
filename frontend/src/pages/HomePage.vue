@@ -692,6 +692,7 @@ export default {
       wpDocTitle: '',
       wpDocSections: [],
       wpConvertedSections: [],
+      API_BASE_URL: 'http://localhost:8000',
     }
   },
 
