@@ -102,8 +102,12 @@
           <span class="current">{{ pageTitle }}</span>
         </div>
         <div class="topbar-right">
-          <button class="tb-btn ghost" @click="openFile">📂 打开文件</button>
-          <button class="tb-btn primary" @click="openModal('快速上传')">⬆️ 上传转换</button>
+          <button class="tb-btn ghost" @click="openFile">
+            <span class="tb-btn-icon">📂</span> 打开文件
+          </button>
+          <button class="tb-btn primary" @click="openModal('快速上传')">
+            <span class="tb-btn-icon">⬆️</span> 上传转换
+          </button>
           <div class="tb-icon" title="通知">🔔</div>
           <div class="tb-icon" title="帮助">❓</div>
         </div>
@@ -302,9 +306,15 @@
         <div v-else-if="currentPage === 'word-pdf'" class="word-pdf-content">
           <!-- 面包屑 -->
           <div class="wp-breadcrumb">
-            <span class="wp-br-link" @click="currentPage = 'dashboard'">工具大厅</span>
-            <span class="wp-br-sep">></span>
-            <span class="wp-br-current">Word ↔ PDF</span>
+            <span class="wp-br-link" @click="currentPage = 'dashboard'">格式转换工具</span>
+            <span class="wp-br-sep">›</span>
+            <span class="wp-br-current">Word转PDF</span>
+          </div>
+
+          <!-- 页面标题 -->
+          <div class="wp-page-title">
+            <span class="wp-title-icon">📄</span>
+            <span class="wp-title-text">Word ↔ PDF</span>
           </div>
 
           <!-- 上部分：上传区域 -->
@@ -320,13 +330,15 @@
               <input ref="wpFileInput" type="file" accept=".doc,.docx,.pdf" style="display:none" @change="wpHandleSelect" />
 
               <template v-if="!wpHasFile">
-                <div class="wp-upload-icon">📁</div>
-                <p class="wp-upload-title">拖拽文件到此处上传</p>
-                <p class="wp-upload-hint">或点击选择文件</p>
-                <div class="wp-format-tags">
-                  <span class="wp-format-tag">.doc</span>
-                  <span class="wp-format-tag">.docx</span>
-                  <span class="wp-format-tag">.pdf</span>
+                <div class="wp-upload-inner">
+                  <div class="wp-upload-icon">📄</div>
+                  <p class="wp-upload-title">上传源文件</p>
+                  <p class="wp-upload-hint">点击或拖拽上传文件</p>
+                  <div class="wp-format-tags">
+                    <span class="wp-format-tag">.doc</span>
+                    <span class="wp-format-tag">.docx</span>
+                    <span class="wp-format-tag">.pdf</span>
+                  </div>
                 </div>
               </template>
 
@@ -341,36 +353,44 @@
                 </div>
               </template>
             </div>
-
-            <!-- 识别提示 -->
-            <div v-if="wpDetectedFormat" class="wp-detect-hint">
-              <span>🔍 检测到文件格式：</span>
-              <strong>{{ wpDetectedFormat === 'pdf' ? 'PDF文档' : 'Word文档' }}</strong>
-              <span class="wp-detect-arrow">→</span>
-              <span>转换结果：</span>
-              <strong>{{ wpDetectedFormat === 'pdf' ? 'Word文档' : 'PDF文档' }}</strong>
-            </div>
           </div>
 
-          <!-- 下部分：对比预览区域 -->
+          <!-- 中部分：对比预览区域 -->
           <div class="wp-preview-section">
-            <div class="wp-compare-view">
+            <!-- Tab 切换 -->
+            <div class="wp-preview-tabs">
+              <div
+                v-for="tab in wpPreviewTabs"
+                :key="tab.id"
+                :class="['wp-preview-tab', { active: wpActiveTab === tab.id }]"
+                @click="wpHandleTab(tab.id)"
+              >
+                <span v-if="tab.id === 'compare'" class="tab-icon">🔍</span>
+                {{ tab.label }}
+              </div>
+            </div>
+
+            <!-- 对比预览内容 -->
+            <div v-if="wpActiveTab === 'compare'" class="wp-preview-body">
               <div class="wp-compare-container">
                 <!-- 原文件预览 -->
                 <div class="wp-compare-column">
                   <div class="wp-compare-header">
-                    <span class="wp-compare-icon">{{ wpUploadedIcon }}</span>
+                    <span class="wp-compare-icon">{{ wpUploadedIcon || '📄' }}</span>
                     <span class="wp-compare-title">原文件预览</span>
+                    <span v-if="wpHasFile" class="wp-compare-clear" @click="wpClearFile">清除</span>
                   </div>
                   <div class="wp-compare-content">
                     <template v-if="wpHasFile">
-                      <div class="wp-file-info">
-                        <div class="wp-file-name">{{ wpUploadedName }}</div>
-                        <div class="wp-file-size">{{ wpUploadedSize }}</div>
-                        <div class="wp-file-format">{{ wpDetectedFormat === 'pdf' ? 'PDF文档' : 'Word文档' }}</div>
-                      </div>
-                      <div class="wp-preview-area">
-                        <div class="wp-preview-text">{{ wpPreviewText }}</div>
+                      <div class="wp-doc-preview">
+                        <div class="wp-doc-title">{{ wpDocTitle || '关于开展2024年度员工培训计划的通知' }}</div>
+                        <div class="wp-doc-divider"></div>
+                        <div class="wp-doc-body">
+                          <div class="wp-doc-section" v-for="(section, idx) in wpDocSections" :key="idx">
+                            <div class="wp-doc-section-title" v-if="section.title">{{ section.title }}</div>
+                            <div class="wp-doc-paragraph" v-for="(p, pidx) in section.paragraphs" :key="pidx">{{ p }}</div>
+                          </div>
+                        </div>
                       </div>
                     </template>
                     <template v-else>
@@ -381,25 +401,34 @@
                     </template>
                   </div>
                 </div>
-                
+
                 <!-- 转换箭头 -->
-                <div class="wp-compare-arrow">→</div>
-                
+                <div class="wp-compare-arrow">
+                  <span class="arrow-icon">🔄</span>
+                  <span class="arrow-label">转换预览</span>
+                </div>
+
                 <!-- 转换结果预览 -->
                 <div class="wp-compare-column">
                   <div class="wp-compare-header">
                     <span class="wp-compare-icon">{{ wpConvertedIcon || '🔄' }}</span>
                     <span class="wp-compare-title">转换预览</span>
+                    <span v-if="wpConvertedFile" class="wp-compare-clear" @click="wpClearConverted">清除</span>
                   </div>
                   <div class="wp-compare-content">
                     <template v-if="wpConvertedFile">
-                      <div class="wp-file-info">
-                        <div class="wp-file-name">{{ wpConvertedName }}</div>
-                        <div class="wp-file-format">{{ wpDetectedFormat === 'pdf' ? 'Word文档' : 'PDF文档' }}</div>
-                        <div class="wp-file-status success">✅ 转换完成</div>
-                      </div>
-                      <div class="wp-preview-area">
-                        <div class="wp-preview-text">{{ wpConvertedText }}</div>
+                      <div class="wp-doc-preview">
+                        <div class="wp-doc-title">{{ wpConvertedName || '关于开展2025年度员工培训计划的通知' }}</div>
+                        <div class="wp-doc-divider"></div>
+                        <div class="wp-doc-body">
+                          <div class="wp-doc-section" v-for="(section, idx) in wpConvertedSections" :key="idx">
+                            <div class="wp-doc-section-title" v-if="section.title">{{ section.title }}</div>
+                            <div class="wp-doc-paragraph-wrapper" v-for="(p, pidx) in section.paragraphs" :key="pidx">
+                              <span v-if="typeof p === 'string'">{{ p }}</span>
+                              <span v-else :class="['wp-doc-paragraph', { highlight: p.highlight }]">{{ p.text }}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </template>
                     <template v-else>
@@ -413,17 +442,72 @@
                 </div>
               </div>
             </div>
+
+            <!-- 原文件预览 Tab -->
+            <div v-else-if="wpActiveTab === 'original'" class="wp-preview-body">
+              <div class="wp-single-preview">
+                <template v-if="wpHasFile">
+                  <div class="wp-doc-preview">
+                    <div class="wp-doc-title">{{ wpDocTitle || wpUploadedName }}</div>
+                    <div class="wp-doc-divider"></div>
+                    <div class="wp-doc-body">
+                      <div class="wp-doc-section" v-for="(section, idx) in wpDocSections" :key="idx">
+                        <div class="wp-doc-section-title" v-if="section.title">{{ section.title }}</div>
+                        <div class="wp-doc-paragraph" v-for="(p, pidx) in section.paragraphs" :key="pidx">{{ p }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="wp-preview-placeholder">
+                    <div class="wp-preview-icon">📄</div>
+                    <p>上传文件后显示预览</p>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- 转换预览 Tab -->
+            <div v-else-if="wpActiveTab === 'converted'" class="wp-preview-body">
+              <div class="wp-single-preview">
+                <template v-if="wpConvertedFile">
+                  <div class="wp-doc-preview">
+                    <div class="wp-doc-title">{{ wpConvertedName }}</div>
+                    <div class="wp-doc-divider"></div>
+                    <div class="wp-doc-body">
+                      <div class="wp-doc-section" v-for="(section, idx) in wpConvertedSections" :key="idx">
+                        <div class="wp-doc-section-title" v-if="section.title">{{ section.title }}</div>
+                        <div class="wp-doc-paragraph" v-for="(p, pidx) in section.paragraphs" :key="pidx" :class="{ highlight: p.highlight }">{{ p.text || p }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="wp-preview-placeholder">
+                    <div class="wp-preview-icon">🔄</div>
+                    <p>转换预览</p>
+                    <p class="wp-preview-hint">点击"开始转换"后显示结果</p>
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
 
           <!-- 底部：操作按钮 -->
           <div class="wp-action-bar">
-            <button class="wp-btn-convert" :disabled="!wpHasFile || wpConverting" @click="wpStartConvert">
-              <span v-if="wpConverting" class="wp-spinner"></span>
-              {{ wpConverting ? '转换中...' : '开始转换' }}
+            <button class="wp-btn-back" @click="currentPage = 'dashboard'">
+              返回首页
             </button>
-            <button class="wp-btn-download" :disabled="!wpConvertedFile" @click="wpDownload">
-              ↓ 下载文件
-            </button>
+            <div class="wp-action-right">
+              <button class="wp-btn-download" :disabled="!wpConvertedFile" @click="wpDownload">
+                <span class="btn-icon">↓</span> 下载文件
+              </button>
+              <button class="wp-btn-convert" :disabled="!wpHasFile || wpConverting" @click="wpStartConvert">
+                <span v-if="wpConverting" class="wp-spinner"></span>
+                <span v-else class="btn-icon">🚀</span>
+                {{ wpConverting ? '转换中...' : '开始转换' }}
+              </button>
+            </div>
           </div>
 
           <!-- 进度条 -->
@@ -586,7 +670,7 @@ export default {
       ],
 
       // Word↔PDF 页面状态
-      wpActiveTab: 'original', // 默认显示原文件预览，上传文件后也只能查看原文件预览
+      wpActiveTab: 'compare',
       wpPreviewTabs: [
         { id: 'compare', label: '对比预览' },
         { id: 'original', label: '原文件预览' },
@@ -605,6 +689,9 @@ export default {
       wpConvertedName: '',
       wpConvertedIcon: '',
       wpConvertedText: '',
+      wpDocTitle: '',
+      wpDocSections: [],
+      wpConvertedSections: [],
     }
   },
 
@@ -884,17 +971,117 @@ export default {
       this.wpUploadedIcon = ext === '.pdf' ? '📋' : '📝'
       this.wpDetectedFormat = ext === '.pdf' ? 'pdf' : 'word'
       this.wpHasFile = true
-      this.wpSelectedFile = file  // 保存文件对象
+      this.wpSelectedFile = file
       console.log('wpHasFile 设置为 true')
       this.wpPreviewText = `文件：${file.name}\n大小：${this.wpUploadedSize}\n\n点击"原文件预览"查看详细内容`
+
+      // 设置文档预览内容（模拟）
+      this.wpDocTitle = file.name.replace(/\.[^.]+$/, '')
+      this.wpDocSections = this.generateMockDocContent()
 
       // 重置转换结果
       this.wpConvertedFile = null
       this.wpConvertedName = ''
       this.wpConvertedText = ''
+      this.wpConvertedSections = []
 
-      // 上传文件后只能查看原文件预览
-      this.wpActiveTab = 'original'
+      // 默认切换到对比预览
+      this.wpActiveTab = 'compare'
+    },
+
+    generateMockDocContent() {
+      return [
+        {
+          title: '一、培训目的',
+          paragraphs: [
+            '为提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。'
+          ]
+        },
+        {
+          title: '二、培训对象',
+          paragraphs: [
+            '公司全体在职员工。'
+          ]
+        },
+        {
+          title: '三、培训内容',
+          paragraphs: []
+        },
+        {
+          title: '3.1 业务技能培训',
+          paragraphs: [
+            '包括产品知识、销售技巧、客户服务等方面的专业培训。'
+          ]
+        },
+        {
+          title: '3.2 管理能力提升',
+          paragraphs: [
+            '针对中层管理人员的管理方法、团队建设等培训。'
+          ]
+        }
+      ]
+    },
+
+    generateMockConvertedContent() {
+      return [
+        {
+          title: '一、培训目的',
+          paragraphs: [
+            '为',
+            { text: '全面', highlight: true },
+            '提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。'
+          ]
+        },
+        {
+          title: '二、培训对象',
+          paragraphs: [
+            '公司全体在职员工及新入职员工。'
+          ]
+        },
+        {
+          title: '三、培训内容',
+          paragraphs: []
+        },
+        {
+          title: '3.1 业务技能培训',
+          paragraphs: [
+            '包括产品知识、销售技巧、客户服务、',
+            { text: '数据分析', highlight: true },
+            '等方面的专业培训。'
+          ]
+        },
+        {
+          title: '3.2 管理能力提升',
+          paragraphs: [
+            '针对中层及以上管理人员的管理方法、团队建设、',
+            { text: '领导力', highlight: true },
+            '等培训。'
+          ]
+        }
+      ]
+    },
+
+    wpClearFile() {
+      this.wpHasFile = false
+      this.wpUploadedName = ''
+      this.wpUploadedSize = ''
+      this.wpUploadedIcon = ''
+      this.wpDetectedFormat = ''
+      this.wpPreviewText = ''
+      this.wpDocTitle = ''
+      this.wpDocSections = []
+      this.wpSelectedFile = null
+      this.wpConvertedFile = null
+      this.wpConvertedName = ''
+      this.wpConvertedText = ''
+      this.wpConvertedSections = []
+    },
+
+    wpClearConverted() {
+      this.wpConvertedFile = null
+      this.wpConvertedName = ''
+      this.wpConvertedText = ''
+      this.wpConvertedSections = []
     },
 
     wpStartConvert() {
@@ -945,9 +1132,10 @@ export default {
         this.wpConvertedIcon = this.wpDetectedFormat === 'pdf' ? '📝' : '📋'
         this.wpConvertedFile = response.data
         this.wpConvertedText = `转换成功！\n\n文件：${this.wpConvertedName}\n\n可以点击"转换预览"查看`
+        this.wpConvertedSections = this.generateMockConvertedContent()
 
         alert('✅ 转换成功！')
-        // 转换成功后自动切换到对比预览
+        // 转换成功后保持在对比预览
         this.wpActiveTab = 'compare'
 
       }).catch(error => {
@@ -1126,23 +1314,23 @@ export default {
   background: var(--card);
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center;
-  padding: 0 28px;
+  padding: 0 24px;
   gap: 16px;
   flex-shrink: 0;
-  box-shadow: 0 1px 0 var(--border);
 }
 .breadcrumb { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
 .breadcrumb .current { color: var(--text); font-weight: 700; }
-.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .tb-btn {
-  padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+  padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
   display: flex; align-items: center; gap: 6px; transition: all 0.18s;
 }
-.tb-btn.primary { background: var(--primary); color: #fff; }
-.tb-btn.primary:hover { background: var(--primary-dark); }
-.tb-btn.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.tb-btn-icon { font-size: 14px; }
+.tb-btn.primary { background: #4F6EF7; color: #fff; }
+.tb-btn.primary:hover { background: #3451D1; }
+.tb-btn.ghost { background: #F0F2F8; color: var(--text); border: 1px solid #E4E7F0; }
 .tb-btn.ghost:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
-.tb-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+.tb-icon { width: 36px; height: 36px; border-radius: 10px; background: #F0F2F8; border: 1px solid #E4E7F0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
 
 .content { flex: 1; overflow-y: auto; padding: 28px; }
 .content::-webkit-scrollbar { width: 6px; }
@@ -1391,144 +1579,79 @@ export default {
 
 /* ==================== Word↔PDF 页面样式 ==================== */
 .word-pdf-content {
-  padding: 24px;
-  max-width: 900px;
-  margin: 0 auto;
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
 }
 
 /* 面包屑 */
 .wp-breadcrumb {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  margin-bottom: 16px;
+  gap: 6px;
+  padding: 12px 24px 0;
+  font-size: 13px;
+  background: var(--card);
 }
 .wp-br-link { color: var(--text-muted); cursor: pointer; }
 .wp-br-link:hover { color: var(--primary); }
-.wp-br-sep { color: var(--text-muted); }
+.wp-br-sep { color: var(--text-muted); font-size: 12px; }
 .wp-br-current { color: var(--text); font-weight: 600; }
 
-/* 预览区域 */
-.wp-preview-section {
-  background: var(--card);
-  border-radius: var(--radius);
-  overflow: hidden;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow);
-}
-.wp-preview-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-}
-.wp-preview-tab {
-  flex: 1;
-  padding: 14px 20px;
-  text-align: center;
-  cursor: pointer;
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 500;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-}
-.wp-preview-tab:hover { color: var(--text); background: var(--bg); }
-.wp-preview-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
-.wp-preview-body {
-  min-height: 160px;
-  padding: 20px;
-}
-.wp-preview-placeholder {
-  height: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-  border-radius: 10px;
-  color: var(--text-muted);
-}
-.wp-preview-icon { font-size: 32px; margin-bottom: 8px; }
-.wp-preview-hint { font-size: 12px; margin-top: 4px; }
-
-/* 文件预览 */
-.wp-file-preview { }
-.wp-file-header {
+/* 页面标题 */
+.wp-page-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
-  background: var(--bg);
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-.wp-file-icon { font-size: 22px; }
-.wp-file-name { font-size: 14px; color: var(--text); }
-.wp-file-content {
-  padding: 14px;
-  background: var(--bg);
-  border-radius: 8px;
-  max-height: 250px;
-  overflow-y: auto;
-}
-.wp-preview-text {
-  font-size: 13px;
-  color: var(--text-muted);
-  white-space: pre-wrap;
-  line-height: 1.7;
-}
-
-/* 对比预览 */
-.wp-compare-view {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  height: 120px;
-}
-.wp-compare-box {
-  flex: 1;
-  max-width: 260px;
-  padding: 16px;
-  background: var(--bg);
-  border-radius: 8px;
-  text-align: center;
-}
-.wp-compare-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-}
-.wp-compare-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 13px;
+  padding: 8px 24px 16px;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text);
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
 }
-.wp-compare-arrow { font-size: 22px; color: var(--text-muted); }
-.wp-pending { color: var(--text-muted); font-style: italic; }
+.wp-title-icon {
+  font-size: 20px;
+}
 
 /* 上传区域 */
-.wp-upload-section { margin-bottom: 20px; }
+.wp-upload-section {
+  padding: 16px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
 .wp-upload-area {
   background: var(--card);
-  border: 2px dashed var(--border);
-  border-radius: var(--radius);
-  padding: 28px;
+  border: 2px dashed #D0D5E3;
+  border-radius: 12px;
+  padding: 32px 28px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
 }
-.wp-upload-area:hover { border-color: var(--primary); }
+.wp-upload-area:hover { border-color: var(--primary); background: var(--primary-light); }
 .wp-upload-area.drag-over { border-color: var(--primary); background: var(--primary-light); border-style: solid; }
-.wp-upload-area.has-file { border-style: solid; border-color: var(--border); }
-.wp-upload-icon { font-size: 36px; margin-bottom: 10px; }
-.wp-upload-title { font-size: 15px; font-weight: 600; color: var(--text); margin: 0 0 6px; }
-.wp-upload-hint { font-size: 13px; color: var(--text-muted); margin: 0 0 14px; }
-.wp-format-tags { display: flex; justify-content: center; gap: 8px; }
-.wp-format-tag { padding: 4px 12px; background: var(--bg); border-radius: 4px; font-size: 12px; color: var(--text-muted); }
+.wp-upload-area.has-file { border-style: solid; border-color: var(--border); padding: 16px 28px; }
+.wp-upload-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.wp-upload-icon { font-size: 36px; margin-bottom: 2px; }
+.wp-upload-title { font-size: 15px; font-weight: 600; color: var(--text); margin: 0; }
+.wp-upload-hint { font-size: 12px; color: var(--text-muted); margin: 0; }
+.wp-format-tags { display: flex; justify-content: center; gap: 8px; margin-top: 6px; }
+.wp-format-tag {
+  padding: 3px 10px;
+  background: #F0F2F8;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #8A93B2;
+  border: 1px solid #E4E7F0;
+}
 
 /* 已上传 */
 .wp-uploaded {
@@ -1555,69 +1678,233 @@ export default {
 }
 .wp-btn-change:hover { border-color: var(--primary); color: var(--primary); }
 
-/* 识别提示 */
-.wp-detect-hint {
+/* 预览区域 */
+.wp-preview-section {
+  flex: 1;
+  background: var(--card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.wp-preview-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  padding: 0 24px;
+}
+.wp-preview-tab {
+  padding: 10px 16px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
+  gap: 6px;
+}
+.wp-preview-tab:hover { color: var(--text); }
+.wp-preview-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.tab-icon { font-size: 13px; }
+.wp-preview-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+.wp-preview-placeholder {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  background: var(--bg);
+  border-radius: 10px;
+  color: var(--text-muted);
+}
+.wp-preview-icon { font-size: 32px; margin-bottom: 8px; }
+.wp-preview-hint { font-size: 12px; margin-top: 4px; }
+
+/* 对比预览 */
+.wp-compare-container {
+  display: flex;
+  gap: 0;
+  height: 100%;
+}
+.wp-compare-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.wp-compare-column:last-child {
+  border-right: none;
+}
+.wp-compare-header {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  margin-top: 14px;
-  padding: 10px;
-  background: #E6F7FF;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #FAFBFC;
+}
+.wp-compare-icon { font-size: 14px; }
+.wp-compare-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.wp-compare-clear {
+  font-size: 12px;
+  color: #4F6EF7;
+  cursor: pointer;
+  font-weight: 500;
+}
+.wp-compare-clear:hover { text-decoration: underline; }
+.wp-compare-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+.wp-compare-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  background: #FAFBFC;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  gap: 4px;
+}
+.arrow-icon { font-size: 18px; }
+.arrow-label { font-size: 10px; color: #22C55E; font-weight: 600; }
+
+/* 文档预览 */
+.wp-doc-preview {
+  background: var(--card);
+}
+.wp-doc-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 10px;
+}
+.wp-doc-divider {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: 12px;
+}
+.wp-doc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wp-doc-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4F6EF7;
+  margin-bottom: 3px;
+}
+.wp-doc-paragraph {
   font-size: 13px;
   color: var(--text);
+  line-height: 1.7;
+  display: inline;
 }
-.wp-detect-arrow { color: var(--text-muted); }
+.wp-doc-paragraph.highlight {
+  background: #FEF3C7;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: inline;
+}
+.wp-doc-paragraph-wrapper {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+/* 单栏预览 */
+.wp-single-preview {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
 
 /* 操作栏 */
 .wp-action-bar {
   display: flex;
-  justify-content: center;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-.wp-btn-back,
-.wp-btn-convert,
-.wp-btn-download {
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding: 12px 24px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+}
+.wp-btn-back {
+  padding: 8px 20px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-muted);
+}
+.wp-btn-back:hover { background: var(--bg); }
+.wp-action-right {
+  display: flex;
+  gap: 10px;
+}
+.wp-btn-download {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-}
-.wp-btn-back {
+  gap: 6px;
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--text-muted);
 }
-.wp-btn-back:hover { background: var(--bg); }
-.wp-btn-convert {
-  flex: 1;
-  max-width: 180px;
-  border: none;
-  background: var(--primary);
-  color: #fff;
-}
-.wp-btn-convert:hover:not(:disabled) { background: var(--primary-dark); }
-.wp-btn-download {
-  border: 1px solid var(--primary);
-  background: var(--card);
-  color: var(--primary);
-}
-.wp-btn-download:hover:not(:disabled) { background: var(--primary-light); }
-.wp-btn-convert:disabled,
+.wp-btn-download:hover:not(:disabled) { background: var(--bg); border-color: var(--primary); color: var(--primary); }
 .wp-btn-download:disabled {
   background: var(--bg);
+  color: var(--text-muted);
+  cursor: not-allowed;
   border-color: var(--border);
+}
+.wp-btn-convert {
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  background: #4F6EF7;
+  color: #fff;
+}
+.wp-btn-convert:hover:not(:disabled) { background: #3451D1; }
+.wp-btn-convert:disabled {
+  background: var(--bg);
   color: var(--text-muted);
   cursor: not-allowed;
 }
+.btn-icon { font-size: 14px; }
 .wp-spinner {
   width: 14px;
   height: 14px;
@@ -1630,10 +1917,9 @@ export default {
 
 /* 进度条 */
 .wp-progress {
-  padding: 14px;
+  padding: 14px 24px;
   background: var(--card);
-  border-radius: 10px;
-  margin-bottom: 20px;
+  border-top: 1px solid var(--border);
 }
 .wp-progress-info {
   display: flex;
@@ -1655,177 +1941,7 @@ export default {
   transition: width 0.3s ease;
 }
 
-
 /* 按钮禁用状态 */
 .modal-btn.disabled { opacity: 0.5; cursor: not-allowed; }
 .modal-btn.confirm:disabled { box-shadow: none; }
-
-/* Word↔PDF 布局样式 - 上下分栏 */
-.wp-upload-section {
-  margin-bottom: 20px;
-}
-.wp-preview-section {
-  margin-bottom: 20px;
-}
-.wp-action-bar {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-}
-
-/* 新增预览样式 */
-.wp-preview-header {
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.wp-preview-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-.wp-preview-icon {
-  font-size: 22px;
-}
-.wp-preview-subtitle {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-.wp-preview-content {
-  padding: 24px;
-}
-.wp-file-details {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-  padding: 16px;
-  background: var(--bg);
-  border-radius: 10px;
-}
-.wp-detail-item {
-  display: flex;
-  align-items: center;
-}
-.wp-detail-label {
-  font-size: 13px;
-  color: var(--text-muted);
-  min-width: 80px;
-}
-.wp-detail-value {
-  font-size: 13px;
-  color: var(--text);
-  font-weight: 500;
-}
-.wp-detail-value.success {
-  color: var(--success);
-}
-.wp-preview-textarea {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 20px;
-  min-height: 120px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-.wp-preview-text {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text);
-  white-space: pre-wrap;
-}
-.wp-preview-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px 16px;
-  background: var(--primary-light);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--primary-dark);
-}
-.wp-preview-guide {
-  margin-top: 16px;
-  padding: 16px;
-  background: var(--bg);
-  border-radius: 10px;
-  font-size: 13px;
-}
-.wp-preview-guide ol {
-  margin: 8px 0 0 16px;
-  padding: 0;
-}
-.wp-preview-guide li {
-  margin-bottom: 6px;
-  line-height: 1.5;
-}
-
-/* 对比预览样式 */
-.wp-compare-container {
-  display: flex;
-  gap: 20px;
-  padding: 20px;
-}
-.wp-compare-column {
-  flex: 1;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.wp-compare-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-.wp-compare-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-}
-.wp-compare-content {
-  padding: 20px;
-}
-.wp-file-info {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-}
-.wp-file-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-.wp-file-size, .wp-file-format, .wp-file-status {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 2px;
-}
-.wp-file-status.success {
-  color: var(--success);
-}
-.wp-preview-area {
-  background: var(--bg);
-  border-radius: 8px;
-  padding: 16px;
-  min-height: 150px;
-}
-.wp-compare-arrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  color: var(--primary);
-  font-weight: 700;
-  width: 40px;
-}
 </style>
