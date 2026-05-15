@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "concurrently \"cd ../backend && python main.py\" \"vite\"",
-    "start:win": "concurrently \"cd ..\\\\backend && python main.py\" \"vite --host\""
+    "start:win": "concurrently \"..\\\\backend\\\\venv\\\\Scripts\\\\python.exe ../backend/main.py\" \"vite --host\""
   },
   "dependencies": {
     "axios": "^1.16.1",
