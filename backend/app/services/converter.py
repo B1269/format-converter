@@ -29,11 +29,45 @@ class ConversionService:
         return str(file_path)
 
     @staticmethod
+    def _get_chinese_font():
+        """获取中文字体，用于 reportlab 生成 PDF"""
+        import logging
+        import os
+
+        logger = logging.getLogger(__name__)
+
+        # 常见中文字体路径（按优先级排序）
+        font_paths = [
+            # Windows 字体（黑体、宋体、仿宋、楷体）
+            r"C:\Windows\Fonts\simhei.ttf",      # 黑体
+            r"C:\Windows\Fonts\simfang.ttf",    # 仿宋
+            r"C:\Windows\Fonts\simkai.ttf",     # 楷体
+            r"C:\Windows\Fonts\simsun.ttc",     # 宋体
+            r"C:\Windows\Fonts\msyh.ttc",       # 微软雅黑
+            r"C:\Windows\Fonts\msyhbd.ttc",      # 微软雅黑粗体
+            # Linux 字体
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            # macOS 字体
+            "/System/Library/Fonts/PingFang.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+        ]
+
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                logger.info(f"找到中文字体: {font_path}")
+                return font_path
+
+        logger.warning("未找到中文字体，PDF中文可能显示为方框")
+        return None
+
+    @staticmethod
     def word_to_pdf(input_path: str) -> str:
         """
         Word转PDF
         根据文件类型选择转换策略：
-        - .docx: 使用python-docx + reportlab
+        - .docx: 使用python-docx + reportlab（需要中文字体）
         - .doc: 使用LibreOffice（更可靠）
         """
         import logging
@@ -55,14 +89,37 @@ class ConversionService:
             try:
                 from docx import Document
                 from reportlab.lib.pagesizes import A4
-                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
                 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
                 from reportlab.lib.units import cm
+                from reportlab.pdfbase import pdfmetrics
+                from reportlab.pdfbase.ttfonts import TTFont
 
                 # 读取Word文档
                 doc = Document(input_path)
 
                 output_file = OUTPUT_DIR / f"{input_file.stem}.pdf"
+
+                # 获取中文字体
+                font_path = ConversionService._get_chinese_font()
+
+                if font_path:
+                    # 注册中文字体
+                    try:
+                        pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+                        # 创建使用中文的自定义样式
+                        chinese_style = ParagraphStyle(
+                            'ChineseStyle',
+                            fontName='ChineseFont',
+                            fontSize=10,
+                            leading=14,
+                        )
+                        logger.info("使用中文字体成功")
+                    except Exception as e:
+                        logger.error(f"字体注册失败: {e}")
+                        chinese_style = None
+                else:
+                    chinese_style = None
 
                 doc_pdf = SimpleDocTemplate(
                     str(output_file),
@@ -79,14 +136,20 @@ class ConversionService:
                 # 转换段落
                 for para in doc.paragraphs:
                     if para.text.strip():
-                        story.append(Paragraph(para.text, styles['Normal']))
+                        if chinese_style:
+                            story.append(Paragraph(para.text, chinese_style))
+                        else:
+                            story.append(Paragraph(para.text, styles['Normal']))
                         story.append(Spacer(1, 12))
 
                 # 转换表格
                 for table in doc.tables:
                     for row in table.rows:
                         row_text = " | ".join([cell.text for cell in row.cells])
-                        story.append(Paragraph(row_text, styles['Normal']))
+                        if chinese_style:
+                            story.append(Paragraph(row_text, chinese_style))
+                        else:
+                            story.append(Paragraph(row_text, styles['Normal']))
                     story.append(Spacer(1, 12))
 
                 doc_pdf.build(story)
