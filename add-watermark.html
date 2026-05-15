@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>添加水印 - 格式转换工具</title>
+<script>
+  // 自动重定向到单页应用
+  window.location.href = 'index.html#add-watermark';
+</script>
+<style>
+  :root {
+    --primary: #4F6EF7;
+    --primary-light: #EEF1FE;
+    --primary-dark: #3451D1;
+    --bg: #F0F2F8;
+    --sidebar-bg: #1E2440;
+    --sidebar-hover: #2A3258;
+    --sidebar-active: #4F6EF7;
+    --card: #FFFFFF;
+    --text: #1A1F36;
+    --text-muted: #8A93B2;
+    --border: #E4E7F0;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --shadow: 0 2px 16px rgba(79,110,247,0.08);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+  .sidebar {
+    width: 220px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 0; }
+
+  .logo-area {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .logo-title { font-size: 17px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .logo-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+  .nav-section { padding: 14px 0 4px; }
+  .nav-section-label {
+    font-size: 10px; color: rgba(255,255,255,0.3);
+    padding: 0 20px 6px;
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 0;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px; font-weight: 500;
+    transition: all 0.18s;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
+  .nav-item.active {
+    background: var(--sidebar-active);
+    color: #fff;
+    font-weight: 700;
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: #fff; border-radius: 0 2px 2px 0;
+  }
+  .nav-icon { font-size: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--primary);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .nav-badge.new { background: var(--danger); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#4F6EF7,#9B59B6); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .user-info { flex: 1; }
+  .user-name { font-size: 12px; color: #fff; font-weight: 600; }
+  .user-role { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    height: 60px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .breadcrumb .current { color: var(--text); font-weight: 700; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .tb-btn {
+    padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+    display: flex; align-items: center; gap: 6px; transition: all 0.18s;
+  }
+  .tb-btn.primary { background: var(--primary); color: #fff; }
+  .tb-btn.primary:hover { background: var(--primary-dark); }
+  .tb-btn.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .tb-btn.ghost:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .tb-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+  .content { flex: 1; overflow-y: auto; padding: 20px 28px; }
+  .content::-webkit-scrollbar { width: 6px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .notif-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); display: inline-block; }
+
+  .file-type-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    background: var(--card);
+    padding: 4px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    width: fit-content;
+  }
+
+  .file-type-tab {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .file-type-tab.active {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .upload-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .upload-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 2px dashed var(--border);
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .upload-box:hover { border-color: var(--primary); background: var(--primary-light); }
+  .upload-box.has-file { border-style: solid; border-color: var(--success); background: #F0FDF4; }
+  .upload-box .upload-icon { font-size: 48px; margin-bottom: 12px; }
+  .upload-box .upload-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .upload-box .upload-desc { font-size: 13px; color: var(--text-muted); }
+  .upload-box .upload-types { margin-top: 12px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+  .type-tag { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+  .preview-section {
+    margin-bottom: 20px;
+  }
+
+  .preview-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    background: var(--card);
+    padding: 4px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    width: fit-content;
+  }
+
+  .preview-tab {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+
+  .preview-tab.active {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .preview-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .preview-panel {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .preview-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .action-link {
+    color: var(--primary);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .image-preview-box {
+    padding: 20px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #F9FAFB;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .image-placeholder {
+    font-size: 64px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+  }
+
+  .image-info {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .preview-image {
+    max-width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+  }
+
+  .file-preview-box {
+    padding: 20px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #F9FAFB;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .file-icon {
+    font-size: 64px;
+    margin-bottom: 12px;
+  }
+
+  .file-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .file-details {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .field-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .field-tag {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .field-tag.h1 { background: #FEF3C7; color: #B45309; }
+  .field-tag.h2 { background: #DBEAFE; color: #1D4ED8; }
+  .field-tag.h3 { background: #D1FAE5; color: #059669; }
+  .field-tag.text { background: #E0E7FF; color: #4338CA; }
+  .field-tag.table { background: #FCE7F3; color: #9D174D; }
+  .field-tag.list { background: #F3E8FF; color: #7C3AED; }
+  .field-tag.quote { background: #ECFDF5; color: #065F46; }
+  .field-tag.toc { background: #FFFBEB; color: #92400E; }
+
+  .watermark-preview-box {
+    padding: 20px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #F9FAFB;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .watermark-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .watermark-grid {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    transform: rotate(-15deg);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: 20px;
+  }
+
+  .watermark-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: rgba(0,0,0,0.2);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .watermark-input-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .option-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  .input-label {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .watermark-input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  .color-picker-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .color-chip {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .color-chip.active {
+    border-color: var(--primary);
+    transform: scale(1.1);
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .slider {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .slider::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 50%;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 3px;
+  }
+
+  .slider-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    width: 50px;
+    text-align: right;
+  }
+
+  .option-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .option-row:last-child { border-bottom: none; }
+
+  .option-label {
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .option-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .toggle-switch {
+    width: 48px;
+    height: 26px;
+    background: var(--border);
+    border-radius: 13px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .toggle-switch.active {
+    background: var(--primary);
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left 0.2s;
+  }
+  .toggle-switch.active::after {
+    left: 25px;
+  }
+
+  .convert-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-btn {
+    padding: 12px 30px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .action-btn.secondary {
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .action-btn.secondary:hover {
+    background: var(--border);
+  }
+
+  .action-btn.primary {
+    background: linear-gradient(135deg, var(--primary), #6C8EFF);
+    color: #fff;
+  }
+
+  .action-btn.primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    box-shadow: 0 4px 14px rgba(79,110,247,0.35);
+  }
+
+  .image-info-panel {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .image-info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .info-item {
+    text-align: center;
+    padding: 10px;
+    background: var(--bg);
+    border-radius: 8px;
+  }
+
+  .info-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  .info-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .recognized-formats {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .recognized-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  .format-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .format-tag {
+    padding: 4px 10px;
+    background: var(--primary-light);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo-area">
+    <div class="logo-title">📄 格式转换工具</div>
+    <div class="logo-sub">Format Converter Pro</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">主要功能</div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🏠</span> 工具大厅
+    </div>
+    <div class="nav-item" onclick="navigateTo('ai-chat.html')">
+      <span class="nav-icon">🤖</span> AI助手
+      <span class="nav-badge new">新</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('cockpit.html')" id="cockpitNav">
+      <span class="nav-icon">🚀</span> 驾驶舱
+      <span class="nav-badge">管</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('doc-convert.html')">
+      <span class="nav-icon">🔄</span> 标准文档转换
+    </div>
+    <div class="nav-item" onclick="navigateTo('image-recog.html')">
+      <span class="nav-icon">🖼️</span> 图片格式识别
+    </div>
+    <div class="nav-item" onclick="navigateTo('param-convert.html')">
+      <span class="nav-icon">⚙️</span> 参数格式转换
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">文件操作</div>
+    <div class="nav-item" onclick="navigateTo('word-to-pdf.html')">
+      <span class="nav-icon">📄</span> Word ↔ PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('image-to-pdf.html')">
+      <span class="nav-icon">🖼️</span> 图片 → PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('mp4-to-mp3.html')">
+      <span class="nav-icon">🎬</span> MP4 → MP3
+    </div>
+    <div class="nav-item" onclick="navigateTo('pdf-merge.html')">
+      <span class="nav-icon">🗂️</span> PDF 合并
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">模版与工具</div>
+    <div class="nav-item" onclick="navigateTo('templates.html')">
+      <span class="nav-icon">📁</span> 格式模版库
+    </div>
+    <div class="nav-item" onclick="navigateTo('video-compress.html')">
+      <span class="nav-icon">🎞️</span> 视频压缩
+    </div>
+    <div class="nav-item active">
+      <span class="nav-icon">💧</span> 添加水印
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">账户</div>
+    <div class="nav-item" onclick="navigateTo('history.html')">
+      <span class="nav-icon">🕐</span> 历史记录
+    </div>
+    <div class="nav-item" onclick="navigateTo('settings.html')">
+      <span class="nav-icon">⚙️</span> 系统设置
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="avatar">👤</div>
+    <div class="user-info">
+      <div class="user-name">管理员</div>
+      <div class="user-role">免费版 · 今日剩余 8 次</div>
+    </div>
+    <div class="notif-dot"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <span>格式转换工具</span>
+      <span>›</span>
+      <span class="current">添加水印</span>
+    </div>
+    <div class="topbar-right">
+      <button class="tb-btn ghost">📂 打开文件</button>
+      <button class="tb-btn primary">⬆️ 上传转换</button>
+      <div class="tb-icon" title="通知">🔔</div>
+      <div class="tb-icon" title="帮助">❓</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="file-type-tabs">
+      <div class="file-type-tab active" id="tabImage" onclick="switchFileType('image')">🖼️ 图片</div>
+      <div class="file-type-tab" id="tabDoc" onclick="switchFileType('doc')">📄 文档</div>
+      <div class="file-type-tab" id="tabPdf" onclick="switchFileType('pdf')">📋 PDF</div>
+    </div>
+
+    <div class="upload-section">
+      <div class="upload-box" id="fileUpload" onclick="triggerUpload()">
+        <div class="upload-icon" id="uploadIcon">🖼️</div>
+        <div class="upload-title" id="uploadTitle">上传图片</div>
+        <div class="upload-desc" id="uploadDesc">点击或拖拽上传需要添加水印的图片</div>
+        <div class="upload-types" id="uploadTypes">
+          <span class="type-tag">JPG</span>
+          <span class="type-tag">PNG</span>
+          <span class="type-tag">BMP</span>
+          <span class="type-tag">TIFF</span>
+        </div>
+        <input type="file" id="mainFile" accept=".jpg,.jpeg,.png,.bmp,.tiff" style="display:none" onchange="handleFileSelect(this)">
+      </div>
+
+      <div class="upload-box" id="watermarkUpload" onclick="triggerWatermarkUpload()">
+        <div class="upload-icon">💧</div>
+        <div class="upload-title">水印图片 (可选)</div>
+        <div class="upload-desc">上传自定义水印图片（PNG透明背景最佳）</div>
+        <div class="upload-types">
+          <span class="type-tag">PNG</span>
+          <span class="type-tag">JPG</span>
+        </div>
+        <input type="file" id="watermarkFile" accept=".png,.jpg,.jpeg" style="display:none" onchange="handleWatermarkSelect(this)">
+      </div>
+    </div>
+
+    <div class="preview-section">
+      <div class="preview-tabs">
+        <div class="preview-tab active" onclick="showPreview('split')">🔍 对比预览</div>
+        <div class="preview-tab" onclick="showPreview('watermark')">💧 水印效果</div>
+      </div>
+
+      <div class="preview-content">
+        <div class="preview-panel">
+          <div class="preview-header">
+            <div class="preview-title">� 原文件预览</div>
+            <span class="action-link" onclick="clearUpload()">清除</span>
+          </div>
+          <div class="image-preview-box" id="originalPreview">
+            <div class="image-placeholder">📄</div>
+            <div class="image-info">上传文件后显示预览</div>
+          </div>
+          <div class="image-info-panel">
+            <div class="image-info-grid">
+              <div class="info-item">
+                <div class="info-value" id="fileWidth">-</div>
+                <div class="info-label">宽度/页数</div>
+              </div>
+              <div class="info-item">
+                <div class="info-value" id="fileHeight">-</div>
+                <div class="info-label">高度/字数</div>
+              </div>
+              <div class="info-item">
+                <div class="info-value" id="fileSize">-</div>
+                <div class="info-label">大小</div>
+              </div>
+            </div>
+          </div>
+          <div class="recognized-formats">
+            <div class="recognized-title">识别到的文件信息:</div>
+            <div class="format-tags" id="formatTags">
+              <span class="format-tag">等待上传</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-panel">
+          <div class="preview-header">
+            <div class="preview-title">💧 添加水印后</div>
+            <span class="action-link" onclick="clearWatermark()">重置</span>
+          </div>
+          <div class="watermark-preview-box" id="watermarkPreview">
+            <div class="image-placeholder">💧</div>
+            <div class="image-info">水印效果预览</div>
+            <div class="watermark-overlay">
+              <div class="watermark-grid" id="watermarkGrid">
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+                <div class="watermark-cell">示例水印</div>
+              </div>
+            </div>
+          </div>
+          <div class="field-tags">
+            <span class="field-tag h1">文字水印</span>
+            <span class="field-tag h2">平铺模式</span>
+            <span class="field-tag h3">旋转15°</span>
+            <span class="field-tag text">透明度50%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="watermark-input-section">
+      <div class="option-title">💧 水印内容设置</div>
+      <label class="input-label">水印文字</label>
+      <input type="text" class="watermark-input" id="watermarkText" placeholder="请输入水印文字，如：内部资料，请勿外传" oninput="updateWatermarkPreview()">
+      
+      <label class="input-label">颜色选择</label>
+      <div class="color-picker-row">
+        <div class="color-chip" style="background:#000000" onclick="selectColor('#000000')"></div>
+        <div class="color-chip" style="background:#333333" onclick="selectColor('#333333')"></div>
+        <div class="color-chip active" style="background:#666666" onclick="selectColor('#666666')"></div>
+        <div class="color-chip" style="background:#999999" onclick="selectColor('#999999')"></div>
+        <div class="color-chip" style="background:#CCCCCC" onclick="selectColor('#CCCCCC')"></div>
+        <div class="color-chip" style="background:#FF0000" onclick="selectColor('#FF0000')"></div>
+        <div class="color-chip" style="background:#FF6600" onclick="selectColor('#FF6600')"></div>
+        <div class="color-chip" style="background:#0066FF" onclick="selectColor('#0066FF')"></div>
+      </div>
+
+      <label class="input-label">透明度</label>
+      <div class="slider-row">
+        <div class="slider" id="opacitySlider" onclick="setOpacity(event)"></div>
+        <span class="slider-value" id="opacityValue">50%</span>
+      </div>
+
+      <label class="input-label">字体大小</label>
+      <div class="slider-row">
+        <div class="slider" id="sizeSlider" onclick="setFontSize(event)"></div>
+        <span class="slider-value" id="sizeValue">24px</span>
+      </div>
+    </div>
+
+    <div class="option-section">
+      <div class="option-title">⚙️ 水印设置</div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">平铺水印</div>
+          <div class="option-desc">水印在文件上重复平铺显示</div>
+        </div>
+        <div class="toggle-switch active" id="toggleTile" onclick="toggleSwitch(this); updateWatermarkPreview()"></div>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">旋转水印</div>
+          <div class="option-desc">水印旋转15度显示</div>
+        </div>
+        <div class="toggle-switch active" id="toggleRotate" onclick="toggleSwitch(this); updateWatermarkPreview()"></div>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">文字阴影</div>
+          <div class="option-desc">给水印文字添加阴影效果</div>
+        </div>
+        <div class="toggle-switch" id="toggleShadow" onclick="toggleSwitch(this); updateWatermarkPreview()"></div>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">自动居中</div>
+          <div class="option-desc">水印自动居中显示</div>
+        </div>
+        <div class="toggle-switch active" id="toggleCenter" onclick="toggleSwitch(this); updateWatermarkPreview()"></div>
+      </div>
+    </div>
+
+    <div class="convert-actions">
+      <button class="action-btn secondary" onclick="navigateTo('preview.html')">返回首页</button>
+      <button class="action-btn primary" onclick="addWatermark()">
+        🚀 添加水印
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentColor = '#666666';
+let currentOpacity = 50;
+let currentFontSize = 24;
+let currentFileType = 'image';
+
+function navigateTo(page) {
+  window.location.href = page;
+}
+
+function switchFileType(type) {
+  currentFileType = type;
+  document.querySelectorAll('.file-type-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const iconMap = { image: '🖼️', doc: '📄', pdf: '📋' };
+  const titleMap = { image: '上传图片', doc: '上传文档', pdf: '上传PDF' };
+  const descMap = {
+    image: '点击或拖拽上传需要添加水印的图片',
+    doc: '点击或拖拽上传需要添加水印的文档',
+    pdf: '点击或拖拽上传需要添加水印的PDF'
+  };
+  const typesMap = {
+    image: ['JPG', 'PNG', 'BMP', 'TIFF'],
+    doc: ['DOC', 'DOCX', 'WPS', 'RTF'],
+    pdf: ['PDF']
+  };
+  const acceptMap = {
+    image: '.jpg,.jpeg,.png,.bmp,.tiff',
+    doc: '.doc,.docx,.wps,.rtf',
+    pdf: '.pdf'
+  };
+
+  document.getElementById('uploadIcon').textContent = iconMap[type];
+  document.getElementById('uploadTitle').textContent = titleMap[type];
+  document.getElementById('uploadDesc').textContent = descMap[type];
+  
+  const typesContainer = document.getElementById('uploadTypes');
+  typesContainer.innerHTML = typesMap[type].map(t => `<span class="type-tag">${t}</span>`).join('');
+  
+  document.getElementById('mainFile').accept = acceptMap[type];
+}
+
+function triggerUpload() {
+  document.getElementById('mainFile').click();
+}
+
+function triggerWatermarkUpload() {
+  document.getElementById('watermarkFile').click();
+}
+
+function handleFileSelect(input) {
+  if (input.files.length > 0) {
+    const file = input.files[0];
+    const uploadBox = document.getElementById('fileUpload');
+    uploadBox.classList.add('has-file');
+
+    const ext = file.name.split('.').pop().toUpperCase();
+    
+    if (currentFileType === 'image') {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const previewBox = document.getElementById('originalPreview');
+        previewBox.innerHTML = `<img src="${e.target.result}" class="preview-image" id="previewImg">`;
+        
+        const img = document.getElementById('previewImg');
+        img.onload = function() {
+          document.getElementById('fileWidth').textContent = img.width + 'px';
+          document.getElementById('fileHeight').textContent = img.height + 'px';
+        };
+        
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        
+        const formatTags = document.getElementById('formatTags');
+        formatTags.innerHTML = `
+          <span class="format-tag">${ext}</span>
+          <span class="format-tag">RGB</span>
+          <span class="format-tag">8-bit</span>
+          <span class="format-tag">识别成功</span>
+        `;
+
+        updateWatermarkPreviewWithImage(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const previewBox = document.getElementById('originalPreview');
+      previewBox.innerHTML = `
+        <div class="file-icon">${currentFileType === 'pdf' ? '📋' : '📄'}</div>
+        <div class="file-name">${file.name}</div>
+        <div class="file-details">${formatFileSize(file.size)} · ${ext}格式</div>
+      `;
+      
+      document.getElementById('fileWidth').textContent = '1页';
+      document.getElementById('fileHeight').textContent = '约3,500字';
+      document.getElementById('fileSize').textContent = formatFileSize(file.size);
+      
+      const formatTags = document.getElementById('formatTags');
+      formatTags.innerHTML = `
+        <span class="format-tag">${ext}</span>
+        <span class="format-tag">文档格式</span>
+        <span class="format-tag">识别成功</span>
+      `;
+    }
+  }
+}
+
+function handleWatermarkSelect(input) {
+  if (input.files.length > 0) {
+    const file = input.files[0];
+    const uploadBox = document.getElementById('watermarkUpload');
+    uploadBox.classList.add('has-file');
+    alert('自定义水印图片已上传！');
+  }
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function clearUpload() {
+  const uploadBox = document.getElementById('fileUpload');
+  uploadBox.classList.remove('has-file');
+  document.getElementById('mainFile').value = '';
+  
+  const previewBox = document.getElementById('originalPreview');
+  previewBox.innerHTML = '<div class="image-placeholder">📄</div><div class="image-info">上传文件后显示预览</div>';
+  document.getElementById('fileWidth').textContent = '-';
+  document.getElementById('fileHeight').textContent = '-';
+  document.getElementById('fileSize').textContent = '-';
+  document.getElementById('formatTags').innerHTML = '<span class="format-tag">等待上传</span>';
+  
+  const watermarkPreview = document.getElementById('watermarkPreview');
+  watermarkPreview.innerHTML = '<div class="image-placeholder">💧</div><div class="image-info">水印效果预览</div><div class="watermark-overlay"><div class="watermark-grid" id="watermarkGrid"><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div><div class="watermark-cell">示例水印</div></div></div>';
+}
+
+function clearWatermark() {
+  const uploadBox = document.getElementById('watermarkUpload');
+  uploadBox.classList.remove('has-file');
+  document.getElementById('watermarkFile').value = '';
+}
+
+function toggleSwitch(el) {
+  el.classList.toggle('active');
+}
+
+function selectColor(color) {
+  document.querySelectorAll('.color-chip').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  currentColor = color;
+  updateWatermarkPreview();
+}
+
+function setOpacity(e) {
+  const slider = e.target;
+  const rect = slider.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  currentOpacity = Math.round((x / rect.width) * 100);
+  document.getElementById('opacityValue').textContent = currentOpacity + '%';
+  updateWatermarkPreview();
+}
+
+function setFontSize(e) {
+  const slider = e.target;
+  const rect = slider.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  currentFontSize = Math.round(12 + (x / rect.width) * 36);
+  document.getElementById('sizeValue').textContent = currentFontSize + 'px';
+  updateWatermarkPreview();
+}
+
+function updateWatermarkPreview() {
+  const text = document.getElementById('watermarkText').value || '示例水印';
+  const cells = document.querySelectorAll('.watermark-cell');
+  cells.forEach(cell => {
+    cell.textContent = text;
+    cell.style.color = currentColor + Math.round(currentOpacity * 2.55).toString(16).padStart(2, '0');
+    cell.style.fontSize = currentFontSize + 'px';
+  });
+  
+  const grid = document.getElementById('watermarkGrid');
+  const rotateToggle = document.getElementById('toggleRotate');
+  grid.style.transform = rotateToggle.classList.contains('active') ? 'rotate(-15deg)' : 'rotate(0deg)';
+  
+  const shadowToggle = document.getElementById('toggleShadow');
+  const shadowStyle = shadowToggle.classList.contains('active') ? '1px 1px 3px rgba(0,0,0,0.3)' : 'none';
+  cells.forEach(cell => cell.style.textShadow = shadowStyle);
+}
+
+function updateWatermarkPreviewWithImage(src) {
+  const watermarkPreview = document.getElementById('watermarkPreview');
+  const text = document.getElementById('watermarkText').value || '示例水印';
+  
+  let gridHtml = '';
+  for (let i = 0; i < 25; i++) {
+    gridHtml += `<div class="watermark-cell" style="color: ${currentColor + Math.round(currentOpacity * 2.55).toString(16).padStart(2, '0')}; font-size: ${currentFontSize}px;">${text}</div>`;
+  }
+  
+  watermarkPreview.innerHTML = `
+    <img src="${src}" class="preview-image">
+    <div class="watermark-overlay">
+      <div class="watermark-grid" id="watermarkGrid" style="transform: rotate(-15deg)">
+        ${gridHtml}
+      </div>
+    </div>
+  `;
+}
+
+function showPreview(type) {
+  document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function addWatermark() {
+  alert('正在添加水印...\n\n水印已成功添加！\n\n您可以下载处理后的文件。');
+}
+
+function checkLogin() {
+  const user = localStorage.getItem('formatToolUser');
+  if (!user) {
+    window.location.href = 'login.html';
+    return;
+  }
+  try {
+    const userObj = JSON.parse(user);
+    if (!userObj.isLoggedIn) {
+      window.location.href = 'login.html';
+    }
+  } catch (e) {
+    window.location.href = 'login.html';
+  }
+}
+
+checkLogin();
+</script>
+</body>
+</html>

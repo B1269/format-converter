@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频压缩 - 格式转换工具</title>
+<script>
+  // 自动重定向到单页应用
+  window.location.href = 'index.html#video-compress';
+</script>
+<style>
+  :root {
+    --primary: #4F6EF7;
+    --primary-light: #EEF1FE;
+    --primary-dark: #3451D1;
+    --bg: #F0F2F8;
+    --sidebar-bg: #1E2440;
+    --sidebar-hover: #2A3258;
+    --sidebar-active: #4F6EF7;
+    --card: #FFFFFF;
+    --text: #1A1F36;
+    --text-muted: #8A93B2;
+    --border: #E4E7F0;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --shadow: 0 2px 16px rgba(79,110,247,0.08);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+  .sidebar {
+    width: 220px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 0; }
+
+  .logo-area {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .logo-title { font-size: 17px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .logo-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+  .nav-section { padding: 14px 0 4px; }
+  .nav-section-label {
+    font-size: 10px; color: rgba(255,255,255,0.3);
+    padding: 0 20px 6px;
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 0;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px; font-weight: 500;
+    transition: all 0.18s;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
+  .nav-item.active {
+    background: var(--sidebar-active);
+    color: #fff;
+    font-weight: 700;
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: #fff; border-radius: 0 2px 2px 0;
+  }
+  .nav-icon { font-size: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--primary);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .nav-badge.new { background: var(--danger); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#4F6EF7,#9B59B6); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .user-info { flex: 1; }
+  .user-name { font-size: 12px; color: #fff; font-weight: 600; }
+  .user-role { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    height: 60px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .breadcrumb .current { color: var(--text); font-weight: 700; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .tb-btn {
+    padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+    display: flex; align-items: center; gap: 6px; transition: all 0.18s;
+  }
+  .tb-btn.primary { background: var(--primary); color: #fff; }
+  .tb-btn.primary:hover { background: var(--primary-dark); }
+  .tb-btn.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .tb-btn.ghost:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .tb-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+  .content { flex: 1; overflow-y: auto; padding: 20px 28px; }
+  .content::-webkit-scrollbar { width: 6px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .notif-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); display: inline-block; }
+
+  .panel {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+
+  .compress-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .upload-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 2px dashed var(--border);
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .upload-box:hover { border-color: var(--primary); background: var(--primary-light); }
+  .upload-box.has-file { border-style: solid; border-color: var(--success); background: #F0FDF4; }
+  .upload-box .upload-icon { font-size: 48px; margin-bottom: 12px; }
+  .upload-box .upload-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .upload-box .upload-desc { font-size: 13px; color: var(--text-muted); }
+  .upload-box .upload-types { margin-top: 12px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+  .type-tag { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+  .video-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 10px;
+    text-align: left;
+    width: 100%;
+  }
+
+  .video-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  .video-info-row:last-child { border-bottom: none; }
+  .video-info-label { font-size: 13px; color: var(--text-muted); }
+  .video-info-value { font-size: 13px; font-weight: 700; color: var(--text); }
+
+  .compress-result {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 24px;
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .result-icon { font-size: 48px; margin-bottom: 12px; }
+  .result-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .result-desc { font-size: 13px; color: var(--text-muted); }
+
+  .result-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 10px;
+    width: 100%;
+  }
+
+  .size-comparison {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 16px 0;
+  }
+
+  .size-item {
+    text-align: center;
+  }
+
+  .size-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .size-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .size-arrow {
+    font-size: 24px;
+    color: var(--primary);
+  }
+
+  .compression-rate {
+    margin-top: 12px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #DCFCE7, #BBF7D0);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #166534;
+  }
+
+  .format-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .format-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+
+  .format-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .format-chip {
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    background: var(--card);
+    color: var(--text-muted);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .format-chip.active {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  .format-chip:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  .quality-section {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+
+  .quality-item {
+    flex: 1;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 2px solid var(--border);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .quality-item.active {
+    border-color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  .quality-item:hover {
+    border-color: var(--primary);
+  }
+
+  .quality-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .quality-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .quality-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .duration-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 20px;
+  }
+
+  .duration-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .duration-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .duration-info {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .duration-progress {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .duration-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--primary), #6C8EFF);
+    transition: width 0.3s ease;
+  }
+
+  .duration-stats {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .duration-stat {
+    text-align: center;
+    flex: 1;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 8px;
+  }
+
+  .duration-stat-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .duration-stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .convert-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-btn {
+    padding: 12px 30px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .action-btn.secondary {
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .action-btn.secondary:hover {
+    background: var(--border);
+  }
+
+  .action-btn.primary {
+    background: linear-gradient(135deg, var(--primary), #6C8EFF);
+    color: #fff;
+  }
+
+  .action-btn.primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    box-shadow: 0 4px 14px rgba(79,110,247,0.35);
+  }
+
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo-area">
+    <div class="logo-title">📄 格式转换工具</div>
+    <div class="logo-sub">Format Converter Pro</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">主要功能</div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🏠</span> 工具大厅
+    </div>
+    <div class="nav-item" onclick="navigateTo('ai-chat.html')">
+      <span class="nav-icon">🤖</span> AI助手
+      <span class="nav-badge new">新</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('cockpit.html')" id="cockpitNav">
+      <span class="nav-icon">🚀</span> 驾驶舱
+      <span class="nav-badge">管</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('doc-convert.html')">
+      <span class="nav-icon">🔄</span> 标准文档转换
+      <span class="nav-badge">7</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('image-recog.html')">
+      <span class="nav-icon">🖼️</span> 图片格式识别
+    </div>
+    <div class="nav-item" onclick="navigateTo('param-convert.html')">
+      <span class="nav-icon">⚙️</span> 参数格式转换
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">文件操作</div>
+    <div class="nav-item" onclick="navigateTo('word-to-pdf.html')">
+      <span class="nav-icon">📄</span> Word ↔ PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('image-to-pdf.html')">
+      <span class="nav-icon">🖼️</span> 图片 → PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('mp4-to-mp3.html')">
+      <span class="nav-icon">🎬</span> MP4 → MP3
+    </div>
+    <div class="nav-item" onclick="navigateTo('pdf-merge.html')">
+      <span class="nav-icon">🗂️</span> PDF 合并
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🗂️</span> PDF 合并
+      <span class="nav-badge new">新</span>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">模版与工具</div>
+    <div class="nav-item" onclick="navigateTo('templates.html')">
+      <span class="nav-icon">📁</span> 格式模版库
+    </div>
+    <div class="nav-item active">
+      <span class="nav-icon">🎞️</span> 视频压缩
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">💧</span> 添加水印
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">账户</div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🕐</span> 历史记录
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">⚙️</span> 系统设置
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="avatar">👤</div>
+    <div class="user-info">
+      <div class="user-name">管理员</div>
+      <div class="user-role">免费版 · 今日剩余 8 次</div>
+    </div>
+    <div class="notif-dot"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <span>格式转换工具</span>
+      <span>›</span>
+      <span class="current">视频压缩</span>
+    </div>
+    <div class="topbar-right">
+      <button class="tb-btn ghost">📂 打开文件</button>
+      <button class="tb-btn primary">⬆️ 上传转换</button>
+      <div class="tb-icon" title="通知">🔔</div>
+      <div class="tb-icon" title="帮助">❓</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="compress-section">
+      <div class="upload-box" id="videoUpload" onclick="triggerUpload('video')">
+        <div class="upload-icon">🎬</div>
+        <div class="upload-title">上传视频</div>
+        <div class="upload-desc">点击或拖拽上传视频文件</div>
+        <div class="upload-types">
+          <span class="type-tag">MP4</span>
+          <span class="type-tag">AVI</span>
+          <span class="type-tag">MOV</span>
+          <span class="type-tag">MKV</span>
+        </div>
+        <input type="file" id="videoFile" accept=".mp4,.avi,.mov,.mkv" style="display:none" onchange="handleFileSelect(this)">
+      </div>
+
+      <div class="compress-result" id="compressResult">
+        <div class="result-icon">📦</div>
+        <div class="result-title">压缩结果预览</div>
+        <div class="result-desc">上传视频后显示压缩效果</div>
+        <div class="result-info" id="resultInfo" style="display:none">
+          <div class="size-comparison">
+            <div class="size-item">
+              <div class="size-value" id="originalSize">0 KB</div>
+              <div class="size-label">原始大小</div>
+            </div>
+            <div class="size-arrow">→</div>
+            <div class="size-item">
+              <div class="size-value" id="compressedSize">0 KB</div>
+              <div class="size-label">压缩后</div>
+            </div>
+          </div>
+          <div class="compression-rate" id="compressionRate">压缩率: 0%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="format-section">
+      <div class="format-title">📁 压缩格式选择</div>
+      <div class="format-chips" id="formatChips">
+        <div class="format-chip active" onclick="selectFormat('h265')">
+          <span>🎬</span> H.265 (高效压缩)
+        </div>
+        <div class="format-chip" onclick="selectFormat('av1')">
+          <span>🎞️</span> AV1 (最高压缩)
+        </div>
+        <div class="format-chip" onclick="selectFormat('h264')">
+          <span>📹</span> H.264 (兼容性强)
+        </div>
+        <div class="format-chip" onclick="selectFormat('360')">
+          <span>🔄</span> 360压缩
+        </div>
+        <div class="format-chip" onclick="selectFormat('7z')">
+          <span>📦</span> 7Z 压缩
+        </div>
+        <div class="format-chip" onclick="selectFormat('zip')">
+          <span>📁</span> ZIP 压缩
+        </div>
+      </div>
+    </div>
+
+    <div class="quality-section">
+      <div class="quality-item active" onclick="selectQuality('high')">
+        <div class="quality-icon">⭐⭐⭐</div>
+        <div class="quality-name">高质量</div>
+        <div class="quality-desc">保留原始画质，体积略减</div>
+      </div>
+      <div class="quality-item" onclick="selectQuality('medium')">
+        <div class="quality-icon">⭐⭐</div>
+        <div class="quality-name">标准</div>
+        <div class="quality-desc">平衡画质与体积</div>
+      </div>
+      <div class="quality-item" onclick="selectQuality('low')">
+        <div class="quality-icon">⭐</div>
+        <div class="quality-name">小文件</div>
+        <div class="quality-desc">优先减小体积</div>
+      </div>
+    </div>
+
+    <div class="duration-section">
+      <div class="duration-header">
+        <div class="duration-title">⏱️ 压缩时长预估</div>
+        <div class="duration-info" id="durationInfo">准备就绪</div>
+      </div>
+      <div class="duration-progress">
+        <div class="duration-fill" id="durationFill" style="width: 0%"></div>
+      </div>
+      <div class="duration-stats">
+        <div class="duration-stat">
+          <div class="duration-stat-value" id="statDuration">--:--</div>
+          <div class="duration-stat-label">预估时间</div>
+        </div>
+        <div class="duration-stat">
+          <div class="duration-stat-value" id="statSpeed">--</div>
+          <div class="duration-stat-label">处理速度</div>
+        </div>
+        <div class="duration-stat">
+          <div class="duration-stat-value" id="statSaving">--</div>
+          <div class="duration-stat-label">节省空间</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="convert-actions">
+      <button class="action-btn secondary" onclick="navigateTo('preview.html')">返回首页</button>
+      <button class="action-btn primary" id="compressBtn" onclick="startCompression()">
+        🚀 开始压缩
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedFormat = 'h265';
+let selectedQuality = 'high';
+let videoFile = null;
+let isCompressing = false;
+
+function navigateTo(page) {
+  window.location.href = page;
+}
+
+function triggerUpload(type) {
+  document.getElementById(type + 'File').click();
+}
+
+function handleFileSelect(input) {
+  if (input.files.length > 0) {
+    videoFile = input.files[0];
+    showVideoInfo(videoFile);
+    calculateCompression();
+  }
+}
+
+function showVideoInfo(file) {
+  const uploadBox = document.getElementById('videoUpload');
+  uploadBox.classList.add('has-file');
+  
+  let videoInfo = uploadBox.querySelector('.video-info');
+  if (!videoInfo) {
+    videoInfo = document.createElement('div');
+    videoInfo.className = 'video-info';
+    uploadBox.appendChild(videoInfo);
+  }
+  
+  const duration = getVideoDuration(file);
+  
+  videoInfo.innerHTML = `
+    <div class="video-info-row">
+      <span class="video-info-label">文件名</span>
+      <span class="video-info-value">${file.name}</span>
+    </div>
+    <div class="video-info-row">
+      <span class="video-info-label">原始大小</span>
+      <span class="video-info-value">${formatFileSize(file.size)}</span>
+    </div>
+    <div class="video-info-row">
+      <span class="video-info-label">格式</span>
+      <span class="video-info-value">${file.name.split('.').pop().toUpperCase()}</span>
+    </div>
+    <div class="video-info-row">
+      <span class="video-info-label">时长</span>
+      <span class="video-info-value">${duration}</span>
+    </div>
+  `;
+}
+
+function getVideoDuration(file) {
+  const sizes = {
+    small: '02:30',
+    medium: '05:45',
+    large: '12:30',
+    xl: '25:00'
+  };
+  
+  if (file.size < 50 * 1024 * 1024) return sizes.small;
+  if (file.size < 150 * 1024 * 1024) return sizes.medium;
+  if (file.size < 500 * 1024 * 1024) return sizes.large;
+  return sizes.xl;
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+}
+
+function calculateCompression() {
+  if (!videoFile) return;
+  
+  const originalSize = videoFile.size;
+  let compressionRatio = 0.3;
+  
+  switch(selectedQuality) {
+    case 'high': compressionRatio = 0.2; break;
+    case 'medium': compressionRatio = 0.4; break;
+    case 'low': compressionRatio = 0.6; break;
+  }
+  
+  switch(selectedFormat) {
+    case 'av1': compressionRatio *= 1.3; break;
+    case 'h265': compressionRatio *= 1.1; break;
+    case '7z': compressionRatio *= 1.4; break;
+    case '360': compressionRatio *= 1.2; break;
+  }
+  
+  const compressedSize = originalSize * (1 - compressionRatio);
+  
+  document.getElementById('originalSize').textContent = formatFileSize(originalSize);
+  document.getElementById('compressedSize').textContent = formatFileSize(compressedSize);
+  document.getElementById('compressionRate').textContent = `压缩率: ${Math.round(compressionRatio * 100)}%`;
+  document.getElementById('resultInfo').style.display = 'block';
+  
+  const saving = originalSize - compressedSize;
+  document.getElementById('statSaving').textContent = `${Math.round(compressionRatio * 100)}%`;
+  document.getElementById('statDuration').textContent = estimateDuration(originalSize);
+  document.getElementById('statSpeed').textContent = '~25 MB/s';
+}
+
+function estimateDuration(size) {
+  const seconds = Math.ceil(size / (25 * 1024 * 1024));
+  if (seconds < 60) return `00:${seconds.toString().padStart(2, '0')}`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function selectFormat(format) {
+  selectedFormat = format;
+  document.querySelectorAll('.format-chip').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  calculateCompression();
+}
+
+function selectQuality(quality) {
+  selectedQuality = quality;
+  document.querySelectorAll('.quality-item').forEach(q => q.classList.remove('active'));
+  event.target.classList.add('active');
+  calculateCompression();
+}
+
+function startCompression() {
+  if (!videoFile || isCompressing) return;
+  
+  isCompressing = true;
+  const btn = document.getElementById('compressBtn');
+  btn.textContent = '⏳ 压缩中...';
+  btn.disabled = true;
+  
+  document.getElementById('durationInfo').textContent = '正在压缩...';
+  
+  const duration = 5000;
+  const startTime = Date.now();
+  const interval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min((elapsed / duration) * 100, 100);
+    document.getElementById('durationFill').style.width = `${progress}%`;
+    
+    if (progress >= 100) {
+      clearInterval(interval);
+      isCompressing = false;
+      btn.textContent = '✅ 压缩完成';
+      document.getElementById('durationInfo').textContent = '压缩完成';
+      
+      setTimeout(() => {
+        btn.textContent = '🚀 开始压缩';
+        btn.disabled = false;
+      }, 2000);
+    }
+  }, 50);
+}
+</script>
+</body>
+</html>

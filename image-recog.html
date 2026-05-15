@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片格式识别 - 格式转换工具</title>
+<script>
+  // 自动重定向到单页应用
+  window.location.href = 'index.html#image-recog';
+</script>
+<style>
+  :root {
+    --primary: #4F6EF7;
+    --primary-light: #EEF1FE;
+    --primary-dark: #3451D1;
+    --bg: #F0F2F8;
+    --sidebar-bg: #1E2440;
+    --sidebar-hover: #2A3258;
+    --sidebar-active: #4F6EF7;
+    --card: #FFFFFF;
+    --text: #1A1F36;
+    --text-muted: #8A93B2;
+    --border: #E4E7F0;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --shadow: 0 2px 16px rgba(79,110,247,0.08);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+  .sidebar {
+    width: 220px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 0; }
+
+  .logo-area {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .logo-title { font-size: 17px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .logo-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+  .nav-section { padding: 14px 0 4px; }
+  .nav-section-label {
+    font-size: 10px; color: rgba(255,255,255,0.3);
+    padding: 0 20px 6px;
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 0;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px; font-weight: 500;
+    transition: all 0.18s;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
+  .nav-item.active {
+    background: var(--sidebar-active);
+    color: #fff;
+    font-weight: 700;
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: #fff; border-radius: 0 2px 2px 0;
+  }
+  .nav-icon { font-size: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--primary);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+  }
+  .nav-badge.new { background: var(--danger); }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#4F6EF7,#9B59B6); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .user-info { flex: 1; }
+  .user-name { font-size: 12px; color: #fff; font-weight: 600; }
+  .user-role { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    height: 60px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .breadcrumb .current { color: var(--text); font-weight: 700; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .tb-btn {
+    padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+    display: flex; align-items: center; gap: 6px; transition: all 0.18s;
+  }
+  .tb-btn.primary { background: var(--primary); color: #fff; }
+  .tb-btn.primary:hover { background: var(--primary-dark); }
+  .tb-btn.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .tb-btn.ghost:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .tb-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+  .content { flex: 1; overflow-y: auto; padding: 20px 28px; }
+  .content::-webkit-scrollbar { width: 6px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .notif-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); display: inline-block; }
+
+  .panel {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+
+  .upload-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .upload-box {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 2px dashed var(--border);
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .upload-box:hover { border-color: var(--primary); background: var(--primary-light); }
+  .upload-box.dragover { border-color: var(--primary); background: var(--primary-light); }
+  .upload-box.has-file { border-style: solid; border-color: var(--success); background: #F0FDF4; }
+  .upload-box .upload-icon { font-size: 32px; margin-bottom: 10px; }
+  .upload-box .upload-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .upload-box .upload-desc { font-size: 12px; color: var(--text-muted); }
+  .upload-box .upload-types { margin-top: 10px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+  .type-tag { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+  .upload-box.has-file .upload-icon { opacity: 0.6; }
+  .upload-box.has-file .file-info {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 8px;
+    text-align: left;
+  }
+  .upload-box.has-file .file-info .file-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .upload-box.has-file .file-info .file-size {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .preview-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .preview-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .preview-tab {
+    padding: 14px 24px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .preview-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: var(--card);
+  }
+
+  .preview-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 400px;
+  }
+
+  .preview-panel {
+    padding: 20px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  .preview-panel:last-child {
+    border-right: none;
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-title {
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .preview-title.original { color: #6B7280; }
+  .preview-title.modified { color: #22C55E; }
+
+  .document-preview {
+    background: #F9FAFB;
+    border-radius: 8px;
+    padding: 16px;
+    min-height: 300px;
+    font-family: "Times New Roman", serif;
+    line-height: 1.8;
+    font-size: 14px;
+    color: #374151;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .document-preview .highlight {
+    background: #FEE2E2;
+    color: #DC2626;
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+
+  .document-preview .title1 {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 16px;
+    color: #1F2937;
+  }
+
+  .document-preview .title2 {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 14px 0 8px;
+    color: #374151;
+  }
+
+  .document-preview .title3 {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 12px 0 6px;
+    color: #4B5563;
+  }
+
+  .document-preview .table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+
+  .document-preview .table td,
+  .document-preview .table th {
+    border: 1px solid #D1D5DB;
+    padding: 6px 10px;
+    text-align: left;
+  }
+
+  .document-preview .table th {
+    background: #E5E7EB;
+    font-weight: bold;
+  }
+
+  .document-preview .list-item {
+    margin-left: 20px;
+    list-style-type: decimal;
+  }
+
+  .image-preview-box {
+    background: #F9FAFB;
+    border-radius: 8px;
+    padding: 16px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .image-preview-box .image-placeholder {
+    width: 200px;
+    height: 200px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #E5E7EB, #D1D5DB);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .image-preview-box .image-info {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .convert-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .action-btn {
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.18s;
+  }
+
+  .action-btn.secondary {
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .action-btn.secondary:hover {
+    background: var(--border);
+  }
+
+  .action-btn.primary {
+    background: linear-gradient(135deg, var(--primary), #6C8EFF);
+    color: #fff;
+  }
+
+  .action-btn.primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    box-shadow: 0 4px 14px rgba(79,110,247,0.35);
+  }
+
+  .comparison-stats {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 16px;
+    padding: 12px 20px;
+    background: var(--bg);
+    border-radius: 8px;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stat-item .stat-value {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .stat-item .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .field-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .field-tag {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .field-tag.h1 { background: #DBEAFE; color: #1D4ED8; }
+  .field-tag.h2 { background: #E0E7FF; color: #4338CA; }
+  .field-tag.h3 { background: #EDE9FE; color: #6D28D9; }
+  .field-tag.text { background: #ECFDF5; color: #059669; }
+  .field-tag.table { background: #FEF3C7; color: #D97706; }
+  .field-tag.list { background: #FCE7F3; color: #BE185D; }
+  .field-tag.quote { background: #E0F2FE; color: #0369A1; }
+  .field-tag.toc { background: #F3E8FF; color: #7C3AED; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo-area">
+    <div class="logo-title">📄 格式转换工具</div>
+    <div class="logo-sub">Format Converter Pro</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">主要功能</div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🏠</span> 工具大厅
+    </div>
+    <div class="nav-item" onclick="navigateTo('ai-chat.html')">
+      <span class="nav-icon">🤖</span> AI助手
+      <span class="nav-badge new">新</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('cockpit.html')" id="cockpitNav">
+      <span class="nav-icon">🚀</span> 驾驶舱
+      <span class="nav-badge">管</span>
+    </div>
+    <div class="nav-item" onclick="navigateTo('doc-convert.html')">
+      <span class="nav-icon">🔄</span> 标准文档转换
+      <span class="nav-badge">7</span>
+    </div>
+    <div class="nav-item active">
+      <span class="nav-icon">🖼️</span> 图片格式识别
+    </div>
+    <div class="nav-item" onclick="navigateTo('param-convert.html')">
+      <span class="nav-icon">⚙️</span> 参数格式转换
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">文件操作</div>
+    <div class="nav-item" onclick="navigateTo('word-to-pdf.html')">
+      <span class="nav-icon">📄</span> Word ↔ PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🖼️</span> 图片 → PDF
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🎬</span> MP4 → MP3
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🗂️</span> PDF 合并
+      <span class="nav-badge new">新</span>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">模版与工具</div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">📁</span> 格式模版库
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🎞️</span> 视频压缩
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">💧</span> 添加水印
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-label">账户</div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">🕐</span> 历史记录
+    </div>
+    <div class="nav-item" onclick="navigateTo('preview.html')">
+      <span class="nav-icon">⚙️</span> 系统设置
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="avatar">👤</div>
+    <div class="user-info">
+      <div class="user-name">管理员</div>
+      <div class="user-role">免费版 · 今日剩余 8 次</div>
+    </div>
+    <div class="notif-dot"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <span>格式转换工具</span>
+      <span>›</span>
+      <span class="current">图片格式识别</span>
+    </div>
+    <div class="topbar-right">
+      <button class="tb-btn ghost">📂 打开文件</button>
+      <button class="tb-btn primary">⬆️ 上传转换</button>
+      <div class="tb-icon" title="通知">🔔</div>
+      <div class="tb-icon" title="帮助">❓</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="upload-section">
+      <div class="upload-box" id="originalUpload" onclick="triggerUpload('original')">
+        <div class="upload-icon">🖼️</div>
+        <div class="upload-title">原图片</div>
+        <div class="upload-desc">点击或拖拽上传需要识别的图片</div>
+        <div class="upload-types">
+          <span class="type-tag">JPG</span>
+          <span class="type-tag">PNG</span>
+          <span class="type-tag">BMP</span>
+          <span class="type-tag">TIFF</span>
+        </div>
+        <input type="file" id="originalFile" accept=".jpg,.jpeg,.png,.bmp,.tiff" style="display:none" onchange="handleFileSelect('original', this)">
+      </div>
+
+      <div class="upload-box" id="modifiedUpload" onclick="triggerUpload('modified')">
+        <div class="upload-icon">✏️</div>
+        <div class="upload-title">修改文档 (Word)</div>
+        <div class="upload-desc">点击或拖拽上传目标格式文档</div>
+        <div class="upload-types">
+          <span class="type-tag">.docx</span>
+          <span class="type-tag">.doc</span>
+          <span class="type-tag">.wps</span>
+        </div>
+        <input type="file" id="modifiedFile" accept=".docx,.doc,.wps" style="display:none" onchange="handleFileSelect('modified', this)">
+      </div>
+    </div>
+
+    <div class="preview-section">
+      <div class="preview-tabs">
+        <div class="preview-tab active" onclick="showPreview('split')">🔍 对比预览</div>
+        <div class="preview-tab" onclick="showPreview('diff')">📊 差异分析</div>
+      </div>
+
+      <div class="comparison-stats" id="comparisonStats" style="display:none">
+        <div class="stat-item">
+          <span class="stat-value">3</span>
+          <span class="stat-label">一级标题</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">5</span>
+          <span class="stat-label">二级标题</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">2</span>
+          <span class="stat-label">表格识别</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">1</span>
+          <span class="stat-label">目录识别</span>
+        </div>
+      </div>
+
+      <div class="preview-content">
+        <div class="preview-panel">
+          <div class="preview-header">
+            <div class="preview-title original">🖼️ 原图预览</div>
+            <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('original')">清除</span>
+          </div>
+          <div class="image-preview-box">
+            <div class="image-placeholder">📄</div>
+            <div class="image-info">上传图片后显示预览</div>
+            <div class="field-tags">
+              <span class="field-tag h1">一级标题</span>
+              <span class="field-tag h2">二级标题</span>
+              <span class="field-tag h3">三级标题</span>
+              <span class="field-tag text">正文</span>
+              <span class="field-tag table">表格</span>
+              <span class="field-tag list">序号</span>
+              <span class="field-tag quote">引用</span>
+              <span class="field-tag toc">目录</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-panel">
+          <div class="preview-header">
+            <div class="preview-title modified">✏️ 识别结果</div>
+            <span class="action-link" style="font-size:12px;color:var(--primary);cursor:pointer" onclick="clearUpload('modified')">清除</span>
+          </div>
+          <div class="document-preview" id="modifiedPreview">
+            <div class="title1">关于开展<span class="highlight">2025</span>年度员工培训计划的通知</div>
+            
+            <div class="title2">一、培训目的</div>
+            为<span class="highlight">全面</span>提升员工专业技能，增强团队协作能力，促进公司持续发展，特制定本培训计划。
+
+            <div class="title2">二、培训对象</div>
+            公司全体在职员工及新入职员工。
+
+            <div class="title2">三、培训内容</div>
+            
+            <div class="title3">3.1 业务技能培训</div>
+            包括产品知识、销售技巧、客户服务、<span class="highlight">数据分析</span>等方面的专业培训。
+            
+            <div class="title3">3.2 管理能力提升</div>
+            针对中层及以上管理人员的管理方法、团队建设、<span class="highlight">领导力</span>等培训。
+
+            <div class="title2">四、培训安排</div>
+            <div class="list-item">培训时间：<span class="highlight">2025年1月1日至12月31日</span></div>
+            <div class="list-item">培训地点：公司培训中心及各分支机构</div>
+
+            <div class="title2">五、附件</div>
+            <table class="table">
+              <tr><th>序号</th><th>培训项目</th><th>时间</th></tr>
+              <tr><td>1</td><td>产品知识培训</td><td><span class="highlight">1月</span></td></tr>
+              <tr><td>2</td><td>销售技巧培训</td><td><span class="highlight">2月</span></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="convert-actions">
+        <button class="action-btn secondary" onclick="navigateTo('preview.html')">返回首页</button>
+        <button class="action-btn primary">🚀 开始格式识别</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function navigateTo(page) {
+  window.location.href = page;
+}
+
+function triggerUpload(type) {
+  document.getElementById(type + 'File').click();
+}
+
+function handleFileSelect(type, input) {
+  if (input.files.length > 0) {
+    const file = input.files[0];
+    const uploadBox = document.getElementById(type + 'Upload');
+    uploadBox.classList.add('has-file');
+    
+    let fileInfo = uploadBox.querySelector('.file-info');
+    if (!fileInfo) {
+      fileInfo = document.createElement('div');
+      fileInfo.className = 'file-info';
+      uploadBox.appendChild(fileInfo);
+    }
+    
+    const fileName = document.createElement('div');
+    fileName.className = 'file-name';
+    fileName.textContent = file.name;
+    
+    const fileSize = document.createElement('div');
+    fileSize.className = 'file-size';
+    fileSize.textContent = formatFileSize(file.size);
+    
+    fileInfo.innerHTML = '';
+    fileInfo.appendChild(fileName);
+    fileInfo.appendChild(fileSize);
+    
+    document.getElementById('comparisonStats').style.display = 'flex';
+  }
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function clearUpload(type) {
+  const uploadBox = document.getElementById(type + 'Upload');
+  uploadBox.classList.remove('has-file');
+  
+  const fileInfo = uploadBox.querySelector('.file-info');
+  if (fileInfo) {
+    fileInfo.remove();
+  }
+  
+  document.getElementById(type + 'File').value = '';
+  
+  const originalHasFile = document.getElementById('originalUpload').classList.contains('has-file');
+  const modifiedHasFile = document.getElementById('modifiedUpload').classList.contains('has-file');
+  
+  if (!originalHasFile && !modifiedHasFile) {
+    document.getElementById('comparisonStats').style.display = 'none';
+  }
+}
+
+function showPreview(type) {
+  const tabs = document.querySelectorAll('.preview-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  if (type === 'split') {
+    document.querySelector('.preview-content').style.gridTemplateColumns = '1fr 1fr';
+    document.querySelectorAll('.preview-panel').forEach(p => p.style.display = 'block');
+  } else {
+    document.querySelector('.preview-content').style.gridTemplateColumns = '1fr';
+    document.querySelector('.preview-panel:first-child').style.display = 'none';
+    document.querySelector('.preview-panel:last-child').style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>
